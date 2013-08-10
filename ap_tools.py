@@ -12,5 +12,5 @@ import matplotlib.pyplot as plt
 def helloworld():
   print('Hello there, Mr. World.')
 
-if __name__==__main__:
+if __name__=='__main__':
   helloworld()
