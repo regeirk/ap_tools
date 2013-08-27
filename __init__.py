@@ -5,6 +5,8 @@ ap_tools
 ========
 """
 
-__all__ = ['utils']
+__all__ = ['utils',
+           'study']
 
 import utils
+import study

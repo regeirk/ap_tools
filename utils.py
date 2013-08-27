@@ -5,6 +5,8 @@
 # Author:      André Palóczy Filho
 # E-mail:      paloczy@gmail.com
 
+__all__ = ['blendedseawinds_subset']
+
 import os
 import numpy as np
 import matplotlib.pyplot as plt
@@ -14,11 +16,12 @@ from glob import glob
 from mlabwrap import MatlabPipe
 from oceans.ff_tools import wrap_lon180, wrap_lon360
 from netCDF4 import Dataset, num2date
+from pandas import Panel
 
-def blendedseawinds_subset(times=[datetime(2010,1,1),datetime(2010,1,2),datetime(2010,1,3)],
-	dt='daily', llcrnrlon=-45, urcrnrlon=-38, llcrnrlat=-25, urcrnrlat=-18):
+def blendedseawinds_subset(times=[datetime(2010,1,2)],
+	dt='daily', llcrnrlon=-45, urcrnrlon=-35, llcrnrlat=-25, urcrnrlat=-18, return_panels=False):
 	"""
-	Get wind vectors from the NCDC-NOAA Blended Seawinds L4 product,
+	Gets wind vectors from the NCDC/NOAA Blended Seawinds L4 product,
 	at a given lon, lat, time bounding box.
 
 	USAGE
@@ -27,21 +30,25 @@ def blendedseawinds_subset(times=[datetime(2010,1,1),datetime(2010,1,2),datetime
 
 	Input
 	-----
-	times: Datetime object or list of datetime objects.
+	* times: Datetime object or list of datetime objects.
 
-	dt: Time resolution wanted. Choose `six-hourly`,
-	`daily` (default) or `monthly`.
+	* dt: Time resolution wanted. Choose `six-hourly`,
+	  `daily` (default) or `monthly`.
 
-	llcrnrlon, urcrnrlon: Longitude band wanted.
-	llcrnrlat, urcrnrlat: Latitude band wanted.
+	* llcrnrlon, urcrnrlon: Longitude band wanted.
+	* llcrnrlat, urcrnrlat: Latitude band wanted.
+
+	* return_panels: Whether or not to return data subsets
+	  as a pandas Panels. Returns lon,lat,time,u,v numpy
+	  arrays if `False`. Defalts to `True`.
 
 	Returns
 	-------
-	lon,
-	lat,
-	time,
-	u,
-	v
+	U,V: pandas Panels containing the `u` and `v` subsets.
+
+	*OR*
+
+	lon,lat,time,u,v: 1D numpy arrays.
 
 	Example
 	-------
@@ -60,13 +67,7 @@ def blendedseawinds_subset(times=[datetime(2010,1,1),datetime(2010,1,2),datetime
 	time = nc.variables.pop('time')
 	time = num2date(time[:], time.units, calendar='standard')
 
-	# if dt=='daily':
-	# 	tcorr = times
-	# 	times += tcorr
-	# elif dt=='monthly':
-
-
-	# Subsettind the data.
+	# Subsetting the data.
 	maskx = np.logical_and(lon >= llcrnrlon, lon <= urcrnrlon)
 	masky = np.logical_and(lat >= llcrnrlat, lat <= urcrnrlat)
 
@@ -85,12 +86,15 @@ def blendedseawinds_subset(times=[datetime(2010,1,1),datetime(2010,1,2),datetime
 	u = nc.variables['u'][maskt,0,masky,maskx]
 	v = nc.variables['v'][maskt,0,masky,maskx]
 
-	# Returns pandas Panel .
-	if return_panel:
-		data = Panel4D(subset, major_axis=lat, minor_axis=lon,
-		               labels=np.atleast_1d(times),
-		               items=np.atleast_1d(depth))
-	# Returns numpy arrays.
+	lon = wrap_lon180(lon)
+	lat,lon,time,u,v = map(np.atleast_1d, [lat,lon,time,u,v])
+
+	# Returns data as pandas Panels.
+	if return_panels:
+		U = Panel(data=u, items=lat, major_axis=lon, minor_axis=time)
+		V = Panel(data=v, items=lat, major_axis=lon, minor_axis=time)
+		return U,V
+	# Returns data as numpy arrays.
 	else:
 		return lon,lat,time,u,v
 
@@ -155,3 +159,5 @@ def helloworld():
 
 if __name__=='__main__':
   helloworld()
+  import doctest
+  doctest.testmod()
