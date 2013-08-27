@@ -70,11 +70,9 @@ def dynmodes(n=6, lat0=5., plot=False, model='Fratantoni_etal1995'):
 	uno = np.ones( (lam.size,lam.size) )
 	Rd = 1e-3*uno/np.sqrt(lam)
 	Rd = np.unique(Rd)
-	f=Rd>1e10
-	Rd[f]=np.inf
 
 	np.disp("Deformation radii [km]:")
-	[np.disp(int(r)) for r in Rd[~f]]
+	[np.disp(int(r)) for r in Rd]
 
 	# orthonormalize eigenvectors, i.e.,
 	# find the dynamical mode vertical structure functions
