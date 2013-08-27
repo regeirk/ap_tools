@@ -107,7 +107,8 @@ def dynmodes(n=6, lat0=5., plot=False, model='Fratantoni_etal1995'):
 			l = 'Modo %s'%str(i+1)
 			ax.plot(Fi[:,i], z, label=l)
 		xl,xr = ax.set_xlim(-5,5)
-		ax.hlines(-H,xl,xr,linestyle='dashed')
+		H2 = -np.cumsum(H)
+		ax.hlines(H2,xl,xr,linestyle='dashed')
 		ax.hold(False)
 		ax.set_title(tit, **kw)
 		ax.set_xlabel(ur'Autofunção [adimensional]', **kw)
@@ -115,7 +116,7 @@ def dynmodes(n=6, lat0=5., plot=False, model='Fratantoni_etal1995'):
 		ax.legend(loc='best')
 		rstyle(ax)
 		fmt='png'
-		fig.savefig(figname+'.'+fmt, format=fmt, bbox='tight')
+		fig.savefig('/home/andre/'+figname+'.'+fmt, format=fmt, bbox='tight')
 
 if __name__=='__main__':
 	print None
