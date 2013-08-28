@@ -7,6 +7,7 @@
 
 __all__ = ['rot_vec',
            'gen_dates',
+           'bb_map',
            'wind_subset']
 
 import os
@@ -80,6 +81,39 @@ def gen_dates(start, end, dt='hour'):
 	dt = DT[dt]
 	dates = rrule.rrule(dt, dtstart=parser.parse(start), until=parser.parse(end))
 	return list(dates)
+
+def bb_map(lons, lats, projection='merc', resolution='i'):
+	"""
+	USAGE
+	-----
+	m = bb_map(lons, lats, **kwargs)
+
+    Returns a Basemap instance with lon,lat bounding limits
+    inferred from the input arrays `lons`,`lats`.
+    Coastlines, countries, states, parallels and meridians
+    are drawn, and continents are filled.
+	"""
+	lons,lats = map(np.asanyarray, (lons,lats))
+	lonmin,lonmax = lons.min(),lons.max()
+	latmin,latmax = lats.min(),lats.max()
+
+	m = Basemap(llcrnrlon=lonmin,
+				urcrnrlon=lonmax,
+				llcrnrlat=latmin,
+				urcrnrlat=latmax,
+				projection=projection,
+				resolution=resolution)
+
+	plt.ioff() # Avoid showing the figure.
+	m.fillcontinents(color='0.9', zorder=-2)
+	m.drawcoastlines(zorder=-1)
+	m.drawstates(zorder=-1)
+	m.drawcountries(linewidth=2.0, zorder=-1)
+	m.drawmapboundary()
+	m.drawmeridians(np.arange(np.floor(lonmin), np.ceil(lonmax), 1), linewidth=0.1, labels=[1, 0, 1, 0])
+	m.drawparallels(np.arange(np.floor(latmin), np.ceil(latmax), 1), linewidth=0.1, labels=[1, 0, 0, 0])
+	plt.ion()
+	return m
 
 def wind_subset(times=(datetime(2009,12,28), datetime(2010,1,10)),
 	dt='daily', llcrnrlon=-45, urcrnrlon=-35, llcrnrlat=-25, urcrnrlat=-18, return_panels=True):
