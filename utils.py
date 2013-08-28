@@ -12,13 +12,47 @@ import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.basemap import Basemap
 from datetime import datetime,timedelta
+from dateutil import rrule,parser
 from glob import glob
 from mlabwrap import MatlabPipe
 from oceans.ff_tools import wrap_lon180, wrap_lon360
 from netCDF4 import Dataset, num2date
 from pandas import Panel
 
-def blendedseawinds_subset(times=[datetime(2010,1,2)],
+def gen_dates(start, end, dt='hour'):
+	"""
+	Returns a list of datetimes within the date range
+	from `start` to `end`, at a `dt` time interval.
+
+	`dt` can be 'second', 'minute', 'hour', 'day', 'week',
+	'month' or 'year'.
+
+	Note
+	-----
+	Modified from original function
+	by Filipe Fernandes (ocefpaf@gmail.com).
+
+	Example
+	-------
+	>>> from ap_tools.utils import gen_dates
+	>>> from datetime import datetime
+	>>> start = '1989-08-19'
+	>>> end = datetime.utcnow().strftime("%Y-%m-%d")
+	>>> gen_dates(start, end, dt='day')
+	"""
+	DT = dict(second=rrule.SECONDLY,
+		      minute=rrule.MINUTELY,
+		      hour=rrule.HOURLY,
+		      day=rrule.DAILY,
+		      week=rrule.WEEKLY,
+		      month=rrule.MONTHLY,
+		      year=rrule.YEARLY)
+
+	dt = DT[dt]
+	dates = rrule.rrule(dt, dtstart=parser.parse(start), until=parser.parse(end))
+	return list(dates)
+
+def wind_subset(times=datetime(2010,1,2),
 	dt='daily', llcrnrlon=-45, urcrnrlon=-35, llcrnrlat=-25, urcrnrlat=-18, return_panels=False):
 	"""
 	Gets wind vectors from the NCDC/NOAA Blended Seawinds L4 product,
@@ -54,7 +88,6 @@ def blendedseawinds_subset(times=[datetime(2010,1,2)],
 	-------
 	TODO.
 	"""
-
 	head = 'http://www.ncdc.noaa.gov/thredds/dodsC/oceanwinds'
 	tails = {'six-hourly':'6hr','daily':'dly','monthly':'mon'}
 
@@ -73,14 +106,28 @@ def blendedseawinds_subset(times=[datetime(2010,1,2)],
 
 	times = np.asanyarray(times) # Wanted times.
 
+	# Ignoring more precise time units than
+	# the resolution in the wanted data.
+	if dt=='six-hourly':
+		for i in xrange(time.size):
+			time[i] = time[i].replace(minute=0)
+	elif dt=='daily':
+		for i in xrange(time.size):
+			time[i] = time[i].replace(hour=0)
+	elif dt=='monthly':
+		for i in xrange(time.size):
+			time[i] = time[i].replace(day=1)
+	else:
+		pass
+
 	# If the time wanted is an interval of months/days/hours.
-	if times.ndim>0:
-		maskt = np.logical_and(time >= times[0], time <= times[-1])
 	# If the time wanted is a single month/day/hour,
 	# get the nearest time available.
+	if times.ndim>0:
+		maskt = np.logical_and(time >= times[0], time <= times[-1])
 	else:
 		idxt = np.abs(time-times).argmin()
-		maskt = time[idxt]
+		maskt = time==time[idxt]
 
 	lon, lat, time = lon[maskx], lat[masky], time[maskt]
 	u = nc.variables['u'][maskt,0,masky,maskx]
