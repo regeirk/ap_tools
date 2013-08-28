@@ -33,7 +33,7 @@ def dynmodes(n=6, lat0=5., plot=False, model='Fratantoni_etal1995'):
 	f0 = 2*omega*np.sin(lat0*np.pi/180) # [s^{-1}]
 	f02 = f0**2                         # [s^{-2}]
 	g = 9.81                            # [m s^{-1}]
-	rho0 = 27.                          # [kg m^{-3}]
+	rho0 = 1027.                        # [kg m^{-3}]
 
 	if model=='Fratantoni_etal1995':
 		H = np.array([80.,170.,175.,250.,325.,3000.])
@@ -70,12 +70,13 @@ def dynmodes(n=6, lat0=5., plot=False, model='Fratantoni_etal1995'):
 	uno = np.ones( (lam.size,lam.size) )
 	Rd = 1e-3*uno/np.sqrt(lam)
 	Rd = np.unique(Rd)
+	Rd = np.flipud(Rd)
 
 	np.disp("Deformation radii [km]:")
 	[np.disp(int(r)) for r in Rd]
 
 	# orthonormalize eigenvectors, i.e.,
-	# find the dynamical mode vertical structure functions
+	# find the dynamical mode vertical structure functions.
 	F = np.zeros( (n,n) )
 
 	for i in xrange(n):
@@ -85,34 +86,46 @@ def dynmodes(n=6, lat0=5., plot=False, model='Fratantoni_etal1995'):
 
 	F=-F
 	F[:,0] = np.abs(F[:,1])
-	z = np.linspace(0,np.sum(H),1000)
+	F = np.fliplr(F)
 
-	nz = z.size
-	Fi = np.zeros( (nz,n) )
-	for i in xrange(n):
-		for j in xrange(nz):
-			idx = near(H,z[j])[0][0]
-			Fi[j,i] = F[idx,i]
+	Fi = np.vstack( (F[0,:],F) )
+	Fi = np.flipud(Fi)
+	for i in xrange(n-1):
+		Fi[i,:] = F[i+1,:]
+	Fi = np.flipud(Fi)
 
-	z=-z
 	# Plot the vertical modes.
 	if plot:
 		plt.close('all')
 		kw = dict(fontsize=15, fontweight='black')
 		fig,ax = plt.subplots()
 		ax.hold(True)
+		Hc = np.sum(H)
+		z = np.flipud(np.linspace(-Hc,0,1000))
+		Hp = np.append(0,H)
+		Hp = -np.cumsum(Hp)
+
+		# build modes for plotting purposes
+		Fp = np.zeros( (z.size,n) )
+		fo = 0
+
 		for i in xrange(n):
-			l = 'Modo %s'%str(i+1)
-			ax.plot(Fi[:,i], z, label=l)
+			f1 = near(z,Hp[i])[0][0]
+			for j in xrange(fo,f1):
+				Fp[j,:] = F[i,:]
+				fo=f1
+
+		for i in xrange(n):
+			l = 'Modo %s'%str(i)
+			ax.plot(Fp[:,i], z, label=l)
 		xl,xr = ax.set_xlim(-5,5)
-		H2 = -np.cumsum(H)
-		ax.hlines(H2,xl,xr,linestyle='dashed')
+		ax.hlines(Hp,xl,xr,linestyle='dashed')
 		ax.hold(False)
 		ax.set_title(tit, **kw)
 		ax.set_xlabel(ur'Autofunção [adimensional]', **kw)
 		ax.set_ylabel(ur'Profundidade [m]', **kw)
-		ax.legend(loc='best')
 		rstyle(ax)
+		ax.legend(loc='lower left', fontsize=20, fancybox=True, shadow=True)
 		fmt='png'
 		fig.savefig('/home/andre/'+figname+'.'+fmt, format=fmt, bbox='tight')
 
