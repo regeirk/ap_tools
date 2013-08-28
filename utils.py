@@ -5,7 +5,8 @@
 # Author:      André Palóczy Filho
 # E-mail:      paloczy@gmail.com
 
-__all__ = ['blendedseawinds_subset']
+__all__ = ['gen_dates',
+           'wind_subset']
 
 import os
 import numpy as np
@@ -52,19 +53,24 @@ def gen_dates(start, end, dt='hour'):
 	dates = rrule.rrule(dt, dtstart=parser.parse(start), until=parser.parse(end))
 	return list(dates)
 
-def wind_subset(times=datetime(2010,1,2),
-	dt='daily', llcrnrlon=-45, urcrnrlon=-35, llcrnrlat=-25, urcrnrlat=-18, return_panels=False):
+def wind_subset(times=(datetime(2009,12,28), datetime(2010,1,10)),
+	dt='daily', llcrnrlon=-45, urcrnrlon=-35, llcrnrlat=-25, urcrnrlat=-18, return_panels=True):
 	"""
 	Gets wind vectors from the NCDC/NOAA Blended Seawinds L4 product,
 	at a given lon, lat, time bounding box.
 
 	USAGE
 	-----
-	[lon,lat,time,u,v] = blendedseawinds_subset(...)
+	u,v = wind_subset(..., return_panels=True)
+
+	*OR*
+
+	[lon,lat,time,u,v] = wind_subset(..., return_panels=False)
 
 	Input
 	-----
-	* times: Datetime object or list of datetime objects.
+	* times: A tuple with 2 datetime objects marking the
+	  start and end of the desired subset.
 
 	* dt: Time resolution wanted. Choose `six-hourly`,
 	  `daily` (default) or `monthly`.
@@ -78,11 +84,11 @@ def wind_subset(times=datetime(2010,1,2),
 
 	Returns
 	-------
-	U,V: pandas Panels containing the `u` and `v` subsets.
+	u,v: pandas Panels containing the data subsets.
 
 	*OR*
 
-	lon,lat,time,u,v: 1D numpy arrays.
+	lon,lat,time,u,v: 1D numpy arrays containing the data subset.
 
 	Example
 	-------
@@ -104,44 +110,43 @@ def wind_subset(times=datetime(2010,1,2),
 	maskx = np.logical_and(lon >= llcrnrlon, lon <= urcrnrlon)
 	masky = np.logical_and(lat >= llcrnrlat, lat <= urcrnrlat)
 
-	times = np.asanyarray(times) # Wanted times.
-
 	# Ignoring more precise time units than
-	# the resolution in the wanted data.
+	# the resolution in the desired dataset.
+	nt = time.size
 	if dt=='six-hourly':
-		for i in xrange(time.size):
+		for i in xrange(nt):
 			time[i] = time[i].replace(minute=0)
 	elif dt=='daily':
-		for i in xrange(time.size):
+		for i in xrange(nt):
 			time[i] = time[i].replace(hour=0)
 	elif dt=='monthly':
-		for i in xrange(time.size):
+		for i in xrange(nt):
 			time[i] = time[i].replace(day=1)
 	else:
 		pass
 
-	# If the time wanted is an interval of months/days/hours.
 	# If the time wanted is a single month/day/hour,
-	# get the nearest time available.
-	if times.ndim>0:
-		maskt = np.logical_and(time >= times[0], time <= times[-1])
-	else:
-		idxt = np.abs(time-times).argmin()
+	# get the nearest time available in the dataset.
+	if np.size(times)<2:
+		idxt = np.abs(time-times[0]).argmin()
 		maskt = time==time[idxt]
+	else:
+		maskt = np.logical_and(time >= times[0], time <= times[1])
 
+	np.disp('Downloading wind subset...')
 	lon, lat, time = lon[maskx], lat[masky], time[maskt]
 	u = nc.variables['u'][maskt,0,masky,maskx]
 	v = nc.variables['v'][maskt,0,masky,maskx]
+	np.disp('Done.')
 
 	lon = wrap_lon180(lon)
 	lat,lon,time,u,v = map(np.atleast_1d, [lat,lon,time,u,v])
 
-	# Returns data as pandas Panels.
+	# Returns data as pandas Panels or as numpy arrays.
 	if return_panels:
-		U = Panel(data=u, items=lat, major_axis=lon, minor_axis=time)
-		V = Panel(data=v, items=lat, major_axis=lon, minor_axis=time)
+		U = Panel(data=u, items=time, major_axis=lat, minor_axis=lon)
+		V = Panel(data=v, items=time, major_axis=lat, minor_axis=lon)
 		return U,V
-	# Returns data as numpy arrays.
 	else:
 		return lon,lat,time,u,v
 
