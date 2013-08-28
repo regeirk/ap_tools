@@ -5,7 +5,8 @@
 # Author:      André Palóczy Filho
 # E-mail:      paloczy@gmail.com
 
-__all__ = ['gen_dates',
+__all__ = ['rot_vec',
+           'gen_dates',
            'wind_subset']
 
 import os
@@ -20,6 +21,33 @@ from oceans.ff_tools import wrap_lon180, wrap_lon360
 from netCDF4 import Dataset, num2date
 from pandas import Panel
 
+def rot_vec(u, v, angle=-45):
+	"""
+	USAGE
+	-----
+	u_rot,v_rot = rot_vec(u,v,angle=-45.)
+
+	Returns the rotated vector components (`u_rot`,`v_rot`)
+	from the zonal-meridional input vector components (`u`,`v`).
+	The rotation is done using the angle `ang` in degrees,
+	positive counterclockwise (trigonometric convention).
+
+	Example
+	-------
+	>>> fom matplotlib.pyplot import quiver
+	>>> from ap_tools.utils import rot_vec
+	>>> u = -1.
+	>>> v = -1.
+	>>> u2,v2 = rot_vec(u,v, angle=-30.)
+	"""
+	u,v = map(np.asanyarray, (u,v))
+	ang = angle*np.pi/180. # Degrees to radians.
+
+	u_rot = +u*np.cos(ang) + v*np.sin(ang) # Usually the across-shore component.
+	v_rot = -u*np.sin(ang) + v*np.cos(ang) # Usually the along-shore component.
+	
+	return u_rot,v_rot
+
 def gen_dates(start, end, dt='hour'):
 	"""
 	Returns a list of datetimes within the date range
@@ -29,7 +57,7 @@ def gen_dates(start, end, dt='hour'):
 	'month' or 'year'.
 
 	Note
-	-----
+	----
 	Modified from original function
 	by Filipe Fernandes (ocefpaf@gmail.com).
 
@@ -56,9 +84,6 @@ def gen_dates(start, end, dt='hour'):
 def wind_subset(times=(datetime(2009,12,28), datetime(2010,1,10)),
 	dt='daily', llcrnrlon=-45, urcrnrlon=-35, llcrnrlat=-25, urcrnrlat=-18, return_panels=True):
 	"""
-	Gets wind vectors from the NCDC/NOAA Blended Seawinds L4 product,
-	at a given lon, lat, time bounding box.
-
 	USAGE
 	-----
 	u,v = wind_subset(..., return_panels=True)
@@ -66,6 +91,9 @@ def wind_subset(times=(datetime(2009,12,28), datetime(2010,1,10)),
 	*OR*
 
 	[lon,lat,time,u,v] = wind_subset(..., return_panels=False)
+
+	Gets wind vectors from the NCDC/NOAA Blended Seawinds L4 product,
+	given a given lon, lat, time bounding box.
 
 	Input
 	-----
@@ -149,6 +177,26 @@ def wind_subset(times=(datetime(2009,12,28), datetime(2010,1,10)),
 		return U,V
 	else:
 		return lon,lat,time,u,v
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # ABORTED.
 # def goes_subset(time=datetime(2010,1,2), data_dir='/home/andre/.goes_data/', dt=24, cloud_thresh=2.0, matlab_process_path='/usr/local/matlabr2008b/bin/matlab', matlab_version='2008b'):
