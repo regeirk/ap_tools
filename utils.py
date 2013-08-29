@@ -7,9 +7,9 @@
 
 __all__ = ['rot_vec',
            'gen_dates',
+           'fmt_isobath',
            'bb_map',
-           'wind_subset',
-           'mur_subset']
+           'wind_subset']
 
 import os
 import numpy as np
@@ -83,6 +83,15 @@ def gen_dates(start, end, dt='hour'):
 	dates = rrule.rrule(dt, dtstart=parser.parse(start), until=parser.parse(end))
 	return list(dates)
 
+def fmt_isobath(cs):
+	"""Formats the labels of isobath contours."""
+  isobstrH = plt.clabel(cs, fontsize=8, fmt='%g', inline_spacing=7, manual=True)
+  for ih in range(0, len(isobstrH)): # Appends 'm' for meters at the end of the label.
+    isobstrh = isobstrH[ih]
+    isobstr = isobstrh.get_text()
+    isobstr = isobstr.replace('-','') + ' m'
+    isobstrh.set_text(isobstr)
+
 def bb_map(lons, lats, projection='merc', resolution='i'):
 	"""
 	USAGE
@@ -106,10 +115,10 @@ def bb_map(lons, lats, projection='merc', resolution='i'):
 				resolution=resolution)
 
 	plt.ioff() # Avoid showing the figure.
-	m.fillcontinents(color='0.9', zorder=-2)
-	m.drawcoastlines(zorder=-1)
-	m.drawstates(zorder=-1)
-	m.drawcountries(linewidth=2.0, zorder=-1)
+	m.fillcontinents(color='0.9', zorder=9)
+	m.drawcoastlines(zorder=10)
+	m.drawstates(zorder=10)
+	m.drawcountries(linewidth=2.0, zorder=10)
 	m.drawmapboundary()
 	m.drawmeridians(np.arange(np.floor(lonmin), np.ceil(lonmax), 1), linewidth=0.1, labels=[1, 0, 1, 0])
 	m.drawparallels(np.arange(np.floor(latmin), np.ceil(latmax), 1), linewidth=0.1, labels=[1, 0, 0, 0])
