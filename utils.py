@@ -85,12 +85,12 @@ def gen_dates(start, end, dt='hour'):
 
 def fmt_isobath(cs):
 	"""Formats the labels of isobath contours."""
-  isobstrH = plt.clabel(cs, fontsize=8, fmt='%g', inline_spacing=7, manual=True)
-  for ih in range(0, len(isobstrH)): # Appends 'm' for meters at the end of the label.
-    isobstrh = isobstrH[ih]
-    isobstr = isobstrh.get_text()
-    isobstr = isobstr.replace('-','') + ' m'
-    isobstrh.set_text(isobstr)
+	isobstrH = plt.clabel(cs, fontsize=8, fmt='%g', inline_spacing=7, manual=True)
+	for ih in range(0, len(isobstrH)): # Appends 'm' for meters at the end of the label.
+		isobstrh = isobstrH[ih]
+		isobstr = isobstrh.get_text()
+		isobstr = isobstr.replace('-','') + ' m'
+		isobstrh.set_text(isobstr)
 
 def bb_map(lons, lats, projection='merc', resolution='i'):
 	"""
