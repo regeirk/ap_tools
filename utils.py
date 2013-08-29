@@ -8,7 +8,8 @@
 __all__ = ['rot_vec',
            'gen_dates',
            'bb_map',
-           'wind_subset']
+           'wind_subset',
+           'mur_subset']
 
 import os
 import numpy as np
@@ -133,6 +134,9 @@ def wind_subset(times=(datetime(2009,12,28), datetime(2010,1,10)),
 	-----
 	* times: A tuple with 2 datetime objects marking the
 	  start and end of the desired subset.
+	  If dt=='clim', this should be an integer indicating the
+	  desired month, from 1 (January) through 12 (December).
+	  This climatology is built from the 1995-2005 data.
 
 	* dt: Time resolution wanted. Choose `six-hourly`,
 	  `daily` (default) or `monthly`.
@@ -157,9 +161,9 @@ def wind_subset(times=(datetime(2009,12,28), datetime(2010,1,10)),
 	TODO.
 	"""
 	head = 'http://www.ncdc.noaa.gov/thredds/dodsC/oceanwinds'
-	tails = {'six-hourly':'6hr','daily':'dly','monthly':'mon'}
+	tail = {'six-hourly':'6hr','daily':'dly','monthly':'mon','clim':'clm-agg'}
 
-	url = head + tails[dt]
+	url = head + tail[dt]
 	nc = Dataset(url)
 
 	llcrnrlon, urcrnrlon = map(wrap_lon360, (llcrnrlon, urcrnrlon))
@@ -184,22 +188,29 @@ def wind_subset(times=(datetime(2009,12,28), datetime(2010,1,10)),
 	elif dt=='monthly':
 		for i in xrange(nt):
 			time[i] = time[i].replace(day=1)
+	elif dt=='clim':
+		time[1] = time[1].replace(month=2) # Fixing February.
+		aux = []; [aux.append(Time.month) for Time in time]
+		time = np.copy(aux); del aux
 	else:
 		pass
 
 	# If the time wanted is a single month/day/hour,
 	# get the nearest time available in the dataset.
-	if np.size(times)<2:
-		idxt = np.abs(time-times[0]).argmin()
-		maskt = time==time[idxt]
+	if dt=='clim':
+		maskt=time==times
 	else:
-		maskt = np.logical_and(time >= times[0], time <= times[1])
+		if np.size(times)<2:
+			idxt = np.abs(time-times[0]).argmin()
+			maskt=time==time[idxt]
+		else:
+			maskt = np.logical_and(time >= times[0], time <= times[1])
 
-	np.disp('Downloading wind subset...')
+	np.disp('Downloading subset...')
 	lon, lat, time = lon[maskx], lat[masky], time[maskt]
 	u = nc.variables['u'][maskt,0,masky,maskx]
 	v = nc.variables['v'][maskt,0,masky,maskx]
-	np.disp('Done.')
+	np.disp('Downloaded.')
 
 	lon = wrap_lon180(lon)
 	lat,lon,time,u,v = map(np.atleast_1d, [lat,lon,time,u,v])
@@ -212,6 +223,87 @@ def wind_subset(times=(datetime(2009,12,28), datetime(2010,1,10)),
 	else:
 		return lon,lat,time,u,v
 
+# TODO.
+# def mur_subset(times=(datetime(2009,12,28), datetime(2010,1,10)),
+# 	llcrnrlon=-45, urcrnrlon=-35, llcrnrlat=-25, urcrnrlat=-18, return_panels=True):
+# 	"""
+# 	USAGE
+# 	-----
+# 	sst = mur_subset(..., return_panels=True)
+
+# 	*OR*
+
+# 	[lon,lat,time,sst] = mur_subset(..., return_panels=False)
+
+# 	Gets sst fields from the Multi-scale Ultra-high Resolution (MUR)
+# 	L4 product, given a given lon, lat, time bounding box.
+
+# 	http://mur.jpl.nasa.gov/
+
+# 	Input
+# 	-----
+# 	* times: A tuple with 2 datetime objects marking the
+# 	  start and end of the desired subset.
+
+# 	* dt: Time resolution wanted. Choose `six-hourly`,
+# 	  `daily` (default) or `monthly`.
+
+# 	* llcrnrlon, urcrnrlon: Longitude band wanted.
+# 	* llcrnrlat, urcrnrlat: Latitude band wanted.
+
+# 	* return_panels: Whether or not to return data subsets
+# 	  as a pandas Panels. Returns lon,lat,time,u,v numpy
+# 	  arrays if `False`. Defalts to `True`.
+
+# 	Returns
+# 	-------
+# 	u,v: pandas Panels containing the data subsets.
+
+# 	*OR*
+
+# 	lon,lat,time,u,v: 1D numpy arrays containing the data subset.
+
+# 	Example
+# 	-------
+# 	TODO.
+# 	"""
+# 	head = 'http://www.ncdc.noaa.gov/thredds/dodsC/oceanwinds'
+
+# 	url = head + tail[dt]
+# 	nc = Dataset(url)
+
+# 	llcrnrlon, urcrnrlon = map(wrap_lon360, (llcrnrlon, urcrnrlon))
+# 	lon = wrap_lon360(nc.variables.pop('lon')[:])
+# 	lat = nc.variables.pop('lat')[:]
+# 	time = nc.variables.pop('time')
+# 	time = num2date(time[:], time.units, calendar='standard')
+
+# 	# Subsetting the data.
+# 	maskx = np.logical_and(lon >= llcrnrlon, lon <= urcrnrlon)
+# 	masky = np.logical_and(lat >= llcrnrlat, lat <= urcrnrlat)
+
+# 	# If the time wanted is a single month/day/hour,
+# 	# get the nearest time available in the dataset.
+# 	if np.size(times)<2:
+# 		idxt = np.abs(time-times[0]).argmin()
+# 		maskt = time==time[idxt]
+# 	else:
+# 		maskt = np.logical_and(time >= times[0], time <= times[1])
+
+# 	np.disp('Downloading wind subset...')
+# 	lon, lat, time = lon[maskx], lat[masky], time[maskt]
+# 	sst = nc.variables['analyzed_sst'][maskt,0,masky,maskx]
+# 	np.disp('Done.')
+
+# 	lon = wrap_lon180(lon)
+# 	lat,lon,time,u,v = map(np.atleast_1d, [lat,lon,time,sst])
+
+# 	# Returns data as pandas Panels or as numpy arrays.
+# 	if return_panels:
+# 		sst = Panel(data=sst, items=time, major_axis=lat, minor_axis=lon)
+# 		return sst
+# 	else:
+# 		return lon,lat,time,sst
 
 
 
