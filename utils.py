@@ -10,6 +10,7 @@ __all__ = ['rot_vec',
            'wind2stress',
            'gen_dates',
            'fmt_isobath',
+           'extract_npz',
            'bb_map',
            'wind_subset']
 
@@ -149,6 +150,21 @@ def fmt_isobath(cs):
 		isobstr = isobstrh.get_text()
 		isobstr = isobstr.replace('-','') + ' m'
 		isobstrh.set_text(isobstr)
+
+def extract_npz(fname):
+	"""
+	USAGE
+	-----
+	varlist = extract_npz(fname)
+
+	Extract variables stored in a .npz file,
+	and returns them in a list.
+	"""
+	d = np.load(fname)
+	arrs = []
+	for arr in d.iterkeys():
+		exec("arrs.append(d['%s'])"%arr)
+	return arrs
 
 def bb_map(lons, lats, projection='merc', resolution='i'):
 	"""
