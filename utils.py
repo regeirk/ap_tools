@@ -120,8 +120,8 @@ def bb_map(lons, lats, projection='merc', resolution='i'):
 	m.drawstates(zorder=10)
 	m.drawcountries(linewidth=2.0, zorder=10)
 	m.drawmapboundary(zorder=9999)
-	m.drawmeridians(np.arange(np.floor(lonmin), np.ceil(lonmax), 1), linewidth=0.1, labels=[1, 0, 1, 0])
-	m.drawparallels(np.arange(np.floor(latmin), np.ceil(latmax), 1), linewidth=0.1, labels=[1, 0, 0, 0])
+	m.drawmeridians(np.arange(np.floor(lonmin), np.ceil(lonmax), 1), linewidth=0.15, labels=[1, 0, 1, 0],zorder=12)
+	m.drawparallels(np.arange(np.floor(latmin), np.ceil(latmax), 1), linewidth=0.15, labels=[1, 0, 0, 0],zorder=12)
 	plt.ion()
 	return m
 
