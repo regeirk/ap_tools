@@ -119,7 +119,7 @@ def bb_map(lons, lats, projection='merc', resolution='i'):
 	m.drawcoastlines(zorder=10)
 	m.drawstates(zorder=10)
 	m.drawcountries(linewidth=2.0, zorder=10)
-	m.drawmapboundary()
+	m.drawmapboundary(zorder=9999)
 	m.drawmeridians(np.arange(np.floor(lonmin), np.ceil(lonmax), 1), linewidth=0.1, labels=[1, 0, 1, 0])
 	m.drawparallels(np.arange(np.floor(latmin), np.ceil(latmax), 1), linewidth=0.1, labels=[1, 0, 0, 0])
 	plt.ion()
@@ -179,7 +179,7 @@ def wind_subset(times=(datetime(2009,12,28), datetime(2010,1,10)),
 	lon = wrap_lon360(nc.variables.pop('lon')[:])
 	lat = nc.variables.pop('lat')[:]
 	time = nc.variables.pop('time')
-	time = num2date(time[:], time.units, calendar='standard')
+	time = num2date(time[:],time.units,calendar='standard')
 
 	# Subsetting the data.
 	maskx = np.logical_and(lon >= llcrnrlon, lon <= urcrnrlon)
@@ -190,13 +190,13 @@ def wind_subset(times=(datetime(2009,12,28), datetime(2010,1,10)),
 	nt = time.size
 	if dt=='six-hourly':
 		for i in xrange(nt):
-			time[i] = time[i].replace(minute=0)
+			time[i] = time[i].replace(minute=0,second=0)
 	elif dt=='daily':
 		for i in xrange(nt):
-			time[i] = time[i].replace(hour=0)
+			time[i] = time[i].replace(hour=0,minute=0,second=0)
 	elif dt=='monthly':
 		for i in xrange(nt):
-			time[i] = time[i].replace(day=1)
+			time[i] = time[i].replace(day=1,hour=0,minute=0,second=0)
 	elif dt=='clim':
 		time[1] = time[1].replace(month=2) # Fixing February.
 		aux = []; [aux.append(Time.month) for Time in time]
@@ -210,7 +210,7 @@ def wind_subset(times=(datetime(2009,12,28), datetime(2010,1,10)),
 		maskt=time==times
 	else:
 		if np.size(times)<2:
-			idxt = np.abs(time-times[0]).argmin()
+			idxt = np.abs(time-times).argmin()
 			maskt=time==time[idxt]
 		else:
 			maskt = np.logical_and(time >= times[0], time <= times[1])
