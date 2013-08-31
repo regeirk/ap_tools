@@ -6,6 +6,7 @@
 # E-mail:      paloczy@gmail.com
 
 __all__ = ['rot_vec',
+           'wind2stress',
            'gen_dates',
            'fmt_isobath',
            'bb_map',
@@ -49,6 +50,43 @@ def rot_vec(u, v, angle=-45):
 	v_rot = -u*np.sin(ang) + v*np.cos(ang) # Usually the along-shore component.
 	
 	return u_rot,v_rot
+
+def wind2stress(u, v, formula='large_pond1981-modified'):
+	"""
+	USAGE
+	-----
+	taux,tauy = wind2stress(u, v, formula='mellor2004')
+
+	Converts u,v wind vector components to taux,tauy
+	wind stress vector components.
+	"""
+	rho_air = 1.226               # kg/m3
+	mag = np.sqrt(u**2+v**2)      # m/s
+	Cd = np.zeros( mag.size ) # Drag coefficient.
+
+	if formula=='large_pond1981-modified':
+		# Large and Pond (1981) formula
+		# modified for light winds, as
+		# in Trenberth et al. (1990).
+		f=mag<=1.
+		Cd[f] = 2.18e-3
+		f=np.logical_and(mag>1.,mag<3.)
+		Cd[f] = (0.62+1.56/mag[f])*1e-3
+		f=np.logical_and(mag>=3.,mag<10.)
+		Cd[f] = 1.14e-3
+		f=mag>=10.
+		Cd[f] = (0.49 + 0.065*mag[f])*1e-3
+	elif formula=='mellor2004':
+		Cd = 7.5e-4 + 6.7e-5*mag
+	else:
+		np.disp('Unknown formula for Cd.')
+		pass
+
+	# Computing wind stress [N/m2]
+	taux = rho_air*Cd*mag*u
+	tauy = rho_air*Cd*mag*v
+
+	return taux,tauy
 
 def gen_dates(start, end, dt='hour'):
 	"""
