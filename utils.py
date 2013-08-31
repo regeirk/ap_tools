@@ -6,6 +6,7 @@
 # E-mail:      paloczy@gmail.com
 
 __all__ = ['rot_vec',
+           'denan',
            'wind2stress',
            'gen_dates',
            'fmt_isobath',
@@ -50,6 +51,17 @@ def rot_vec(u, v, angle=-45):
 	v_rot = -u*np.sin(ang) + v*np.cos(ang) # Usually the along-shore component.
 	
 	return u_rot,v_rot
+
+def denan(arr):
+	"""
+	USAGE
+	-----
+	denaned_arr = denan(arr)
+
+	Remove the NaNs from an array.
+	"""
+	f = np.isnan(arr)
+	return arr[~f]
 
 def wind2stress(u, v, formula='large_pond1981-modified'):
 	"""
