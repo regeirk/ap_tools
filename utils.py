@@ -100,13 +100,17 @@ def wind2stress(u, v, formula='large_pond1981-modified'):
 
 	return taux,tauy
 
-def gen_dates(start, end, dt='hour'):
+def gen_dates(start, end, dt='hour', input_datetime=False):
 	"""
 	Returns a list of datetimes within the date range
 	from `start` to `end`, at a `dt` time interval.
 
 	`dt` can be 'second', 'minute', 'hour', 'day', 'week',
 	'month' or 'year'.
+
+	If `input_datetime` is False (default), `start` and `end`
+	must be a date in string form. If `input_datetime` is True,
+	`start` and `end` must be datetime objects.
 
 	Note
 	----
@@ -130,7 +134,11 @@ def gen_dates(start, end, dt='hour'):
 		      year=rrule.YEARLY)
 
 	dt = DT[dt]
-	dates = rrule.rrule(dt, dtstart=parser.parse(start), until=parser.parse(end))
+
+	if input_datetime: # Input are datetime objects. No parsing needed.
+		dates = rrule.rrule(dt, dtstart=start, until=end)
+	else:              # Input in string form, parse into datetime objects.
+		dates = rrule.rrule(dt, dtstart=parser.parse(start), until=parser.parse(end))
 	return list(dates)
 
 def fmt_isobath(cs):
