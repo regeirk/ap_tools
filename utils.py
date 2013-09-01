@@ -9,10 +9,13 @@ __all__ = ['rot_vec',
            'denan',
            'wind2stress',
            'gen_dates',
+           'doy2datetime',
+           'datetime2doy',
            'fmt_isobath',
            'extract_npz',
            'bb_map',
-           'wind_subset']
+           'wind_subset',
+		   'dl_goes']
 
 import os
 import numpy as np
@@ -306,6 +309,53 @@ def wind_subset(times=(datetime(2009,12,28), datetime(2010,1,10)),
 	else:
 		return lon,lat,time,u,v
 
+def dl_goes(time=datetime(2013,9,13), dt=24, cloud_thresh=2.0, data_dir='/home/andre/.goes_data/'):
+	"""
+	USAGE
+	-----
+	dl_goes(time=datetime(2013,9,13))
+
+	Downloads full GOES SST images from the PODAAC FTP (12 MB each). Uses wget.
+
+	ftp://podaac-ftp.jpl.nasa.gov/allData/goes/L3/goes_6km_nrt/americas/.
+
+	* `time` is a datetime object or a list of datetime objects containing the desired times.
+
+	* `dt` is an integer representing the time resolution desired. Choose from `24` (default),
+	`3` or `1`. If `dt` is either 1 or 3, all images for each day in `time` will be downloaded.
+
+	* `cloud_thresh` is a float (0.0-100.) representing the cloudy pixel probability threshold.
+	Default is 2.0, meaning that all pixels whose cloud probability is >=2.0 percent will be masked.
+
+	TODO
+	----
+	Find an openDAP link for this dataset.
+	"""
+
+	if type(time)!=list:
+		time = [time]
+
+	for date in time: # Getting files for each day in the list.
+		yyyy = str(date.year)
+		dd = str(date.day).zfill(3)
+		head = 'ftp://podaac-ftp.jpl.nasa.gov/OceanTemperature/goes/L3/goes_6km_nrt/americas/%s/%s/' %(yyyy,dd)
+		filename = 'sst%sb_%s_%s' % (str(dt),yyyy,dd) # dt can be 1, 3 or 24 (hourly, 3-hourly or daily).
+		url = head + filename                         # The 'b' character is only for 2008-present data.
+		cmd = "wget -r --tries=inf %s" %url
+		original_dir = os.getcwd()
+		if os.path.isdir(data_dir):
+			os.chdir(data_dir)
+		else:
+			os.makedirs(data_dir)
+			os.chdir(data_dir)
+		# Download file.
+		os.system(cmd)
+
+	np.disp("Done downloading all files.")
+	os.chdir(original_dir) # Return to original directory.
+
+	return None
+
 # TODO.
 # def mur_subset(times=(datetime(2009,12,28), datetime(2010,1,10)),
 # 	llcrnrlon=-45, urcrnrlon=-35, llcrnrlat=-25, urcrnrlat=-18, return_panels=True):
@@ -387,81 +437,6 @@ def wind_subset(times=(datetime(2009,12,28), datetime(2010,1,10)),
 # 		return sst
 # 	else:
 # 		return lon,lat,time,sst
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# ABORTED.
-# def goes_subset(time=datetime(2010,1,2), data_dir='/home/andre/.goes_data/', dt=24, cloud_thresh=2.0, matlab_process_path='/usr/local/matlabr2008b/bin/matlab', matlab_version='2008b'):
-# 	"""Downloads a subset of GOES SST data from the PODAAC FTP.
-# 	ftp://podaac-ftp.jpl.nasa.gov/allData/goes/L3/goes_6km_nrt/americas/."""
-
-# 	if type(time)!=list:
-# 		time = [time]
-
-#     # Getting files for each day.
-# 	for date in time:
-# 		yyyy = str(date.year)
-# 		dd = str(date.day).zfill(3)
-# 		head = 'ftp://podaac-ftp.jpl.nasa.gov/OceanTemperature/goes/L3/goes_6km_nrt/americas/%s/%s/' %(yyyy,dd)
-# 		filename = 'sst%sb_%s_%s' % (str(dt),yyyy,dd) # Interval can be 1, 3 or 24 (hourly, 3-hourly or daily).
-# 		url = head + filename                         # The 'b' character is only for 2008-present data.
-# 		cmd = "wget -r --tries=inf %s" %url
-# 		original_dir = os.getcwd()
-# 		if os.path.isdir(data_dir):
-# 			os.chdir(data_dir)
-# 		else:
-# 			os.makedirs(data_dir)
-# 			os.chdir(data_dir)
-
-# 		os.system(cmd) # Download file.
-# 		filelist = glob(filename); filelist.sort()
-# 		lz = len(filelist)*len(time)
-# 		# Run read_goes.m and subset SST array.
-# 		for fname in filelist:
-# 			matlab = MatlabPipe(matlab_process_path=matlab_process_path, matlab_version=matlab_version)
-# 			matlab.open(print_matlab_welcome=False)
-# 			o=matlab.eval("pwd;ls")
-# 			cmd = "[sst,x,y] = read_goes('%s', %s);" %(fname,str(cloud_thresh))
-# 			print cmd
-# 			o=matlab.eval(cmd)
-# 			o=matlab.eval("sst = sst';") # !
-# 			o=matlab.eval("[xg,yg] = meshgrid(x,y);")
-# 			o=matlab.eval("x_aux = (x>=-44.8) & (x<=-37.8); y_aux = (y>=-25.2) & (y<=-19.8);")
-# 			o=matlab.eval("x_aux2 = (x>=-42) & (x<=-41); y_aux2 = (y>=-22.8) & (y<=-22);")
-# 			o=matlab.eval("shp = [sum(y_aux) sum(x_aux)];")
-# 			o=matlab.eval("shp2 = [sum(y_aux2) sum(x_aux2)];")
-# 			o=matlab.eval("fcst = (xg>=-44.8) & (xg<=-37.8) & (yg>=-25.2) & (yg<=-19.8);")
-# 			o=matlab.eval("fcst2 = (xg>=-42) & (xg<=-41) & (yg>=-22.8) & (yg<=-22);")
-# 			o=matlab.eval("sst1 = reshape(sst(fcst),shp);")
-# 			o=matlab.eval("sst2 = reshape(sst(fcst2),shp2);")
-# 			o=matlab.eval("sst = sst1; clear sst1")
-# 			o=matlab.eval("x = reshape(xg(fcst),shp);")
-# 			o=matlab.eval("y = reshape(yg(fcst),shp);")
-# 			o=matlab.eval("x2 = reshape(xg(fcst2),shp2);")
-# 			o=matlab.eval("y2 = reshape(yg(fcst2),shp2);")
-# 			# o=matlab.eval("save temp.mat x y x2 y2 sst sst2")
-# 			# o=matlab.eval("save temp.mat x y sst")
-# 			matlab.close()
-# 	os.chdir(original_dir)
-
-# 	return None
 
 def helloworld():
   np.disp('Hello there, Mr. World.')
