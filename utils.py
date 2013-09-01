@@ -9,8 +9,6 @@ __all__ = ['rot_vec',
            'denan',
            'wind2stress',
            'gen_dates',
-           'doy2datetime',
-           'datetime2doy',
            'fmt_isobath',
            'extract_npz',
            'bb_map',
@@ -22,6 +20,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.basemap import Basemap
 from datetime import datetime,timedelta
+from times import doy2datetime,datetime2doy
 from dateutil import rrule,parser
 from glob import glob
 from mlabwrap import MatlabPipe
@@ -144,44 +143,6 @@ def gen_dates(start, end, dt='hour', input_datetime=False):
 	else:              # Input in string form, parse into datetime objects.
 		dates = rrule.rrule(dt, dtstart=parser.parse(start), until=parser.parse(end))
 	return list(dates)
-
-def doy2datetime(doy, year=2000):
-    """Constructs a datetime object from given day of year.
-
-    Parameters
-    ----------
-    year : int, optional
-        The year of the day of the year.
-
-    Examples
-    --------
-    >>> import datetime
-    >>> doy2datetime(1.5211863425925927, 2040)
-    datetime.datetime(2040, 1, 1, 12, 30, 30, 500000)"""
-    def doy2datetime_single(doy):
-        return datetime(year, month=1, day=1) + timedelta(days=(doy - 1))
-    # TODO: interpret 365, 0 as a new year
-    try:
-        return np.array([doy2datetime_single(sub_doy) for sub_doy in doy])
-    except TypeError:
-        return doy2datetime_single(doy)
-
-def datetime2doy(dt):
-    """ Extracts the day of year as a float from the given datetimes.
-
-    >>> import datetime
-    >>> dt = datetime.datetime(2040, 1, 1, 12, 30, 30, 500000)
-    >>> datetime2doy(dt)
-    1.5211863425925927
-    """
-    def datetime2doy_single(dt):
-        return (time_part(dt, "%j") + dt.hour / 24. + dt.minute / (24. * 60) +
-                dt.second / (24. * 60 ** 2) +
-                dt.microsecond / (24. * 60 ** 2 * 1e6))
-    try:
-        return np.array([datetime2doy_single(sub_dt) for sub_dt in dt])
-    except TypeError:
-        return datetime2doy_single(dt)
 
 def fmt_isobath(cs):
 	"""Formats the labels of isobath contours."""
@@ -347,7 +308,7 @@ def wind_subset(times=(datetime(2009,12,28), datetime(2010,1,10)),
 	else:
 		return lon,lat,time,u,v
 
-def dl_goes(time=datetime(2013,9,13), dt=24, cloud_thresh=2.0, data_dir='/home/andre/.goes_data/'):
+def dl_goes(time=datetime(2013,9,13), dt=24, cloud_thresh=2.0, dest_dir='/home/andre/.goes_data/'):
 	"""
 	USAGE
 	-----
@@ -365,32 +326,35 @@ def dl_goes(time=datetime(2013,9,13), dt=24, cloud_thresh=2.0, data_dir='/home/a
 	* `cloud_thresh` is a float (0.0-100.) representing the cloudy pixel probability threshold.
 	Default is 2.0, meaning that all pixels whose cloud probability is >=2.0 percent will be masked.
 
+    * `dest_dir` is the directory in which the downloaded data will be saved.
+
 	TODO
 	----
-	Find an openDAP link for this dataset.
+	Find an openDAP link for this dataset (WITH the bayesian cloud filter).
 	"""
 
 	if type(time)!=list:
 		time = [time]
 
+	original_dir = os.getcwd()  # Store original working directory.
+	if os.path.isdir(dest_dir): # If dest_dir already exists.
+		os.chdir(dest_dir)
+	else:                       # Create it if it does not exist.
+		os.makedirs(dest_dir)
+		os.chdir(dest_dir)
+
 	for date in time: # Getting files for each day in the list.
 		yyyy = str(date.year)
-		dd = str(date.day).zfill(3)
+		dd = int(datetime2doy(date)) # Get the julian day.
+		dd = str(dd).zfill(3)
 		head = 'ftp://podaac-ftp.jpl.nasa.gov/OceanTemperature/goes/L3/goes_6km_nrt/americas/%s/%s/' %(yyyy,dd)
 		filename = 'sst%sb_%s_%s' % (str(dt),yyyy,dd) # dt can be 1, 3 or 24 (hourly, 3-hourly or daily).
 		url = head + filename                         # The 'b' character is only for 2008-present data.
-		cmd = "wget -r --tries=inf %s" %url
-		original_dir = os.getcwd()
-		if os.path.isdir(data_dir):
-			os.chdir(data_dir)
-		else:
-			os.makedirs(data_dir)
-			os.chdir(data_dir)
-		# Download file.
-		os.system(cmd)
+		cmd = "wget --tries=inf %s" %url
+		os.system(cmd) # Download file.
 
+	os.chdir(original_dir) # Return to the original working directory.
 	np.disp("Done downloading all files.")
-	os.chdir(original_dir) # Return to original directory.
 
 	return None
 
