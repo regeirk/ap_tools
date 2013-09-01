@@ -145,6 +145,44 @@ def gen_dates(start, end, dt='hour', input_datetime=False):
 		dates = rrule.rrule(dt, dtstart=parser.parse(start), until=parser.parse(end))
 	return list(dates)
 
+def doy2datetime(doy, year=2000):
+    """Constructs a datetime object from given day of year.
+
+    Parameters
+    ----------
+    year : int, optional
+        The year of the day of the year.
+
+    Examples
+    --------
+    >>> import datetime
+    >>> doy2datetime(1.5211863425925927, 2040)
+    datetime.datetime(2040, 1, 1, 12, 30, 30, 500000)"""
+    def doy2datetime_single(doy):
+        return datetime(year, month=1, day=1) + timedelta(days=(doy - 1))
+    # TODO: interpret 365, 0 as a new year
+    try:
+        return np.array([doy2datetime_single(sub_doy) for sub_doy in doy])
+    except TypeError:
+        return doy2datetime_single(doy)
+
+def datetime2doy(dt):
+    """ Extracts the day of year as a float from the given datetimes.
+
+    >>> import datetime
+    >>> dt = datetime.datetime(2040, 1, 1, 12, 30, 30, 500000)
+    >>> datetime2doy(dt)
+    1.5211863425925927
+    """
+    def datetime2doy_single(dt):
+        return (time_part(dt, "%j") + dt.hour / 24. + dt.minute / (24. * 60) +
+                dt.second / (24. * 60 ** 2) +
+                dt.microsecond / (24. * 60 ** 2 * 1e6))
+    try:
+        return np.array([datetime2doy_single(sub_dt) for sub_dt in dt])
+    except TypeError:
+        return datetime2doy_single(dt)
+
 def fmt_isobath(cs):
 	"""Formats the labels of isobath contours."""
 	isobstrH = plt.clabel(cs, fontsize=8, fmt='%g', inline_spacing=7, manual=True)
