@@ -105,7 +105,7 @@ def wind2stress(u, v, formula='large_pond1981-modified'):
 
 	return taux,tauy
 
-def gen_dates(start, end, dt='hour', input_datetime=False):
+def gen_dates(start, end, dt='day', input_datetime=False):
 	"""
 	Returns a list of datetimes within the date range
 	from `start` to `end`, at a `dt` time interval.
