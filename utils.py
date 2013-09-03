@@ -11,6 +11,7 @@ __all__ = ['rot_vec',
            'gen_dates',
            'fmt_isobath',
            'extract_npz',
+           'mat2npz',
            'bb_map',
            'wind_subset',
 		   'dl_goes']
@@ -22,6 +23,7 @@ from mpl_toolkits.basemap import Basemap
 from datetime import datetime,timedelta
 from times import doy2datetime,datetime2doy
 from dateutil import rrule,parser
+from scipy.io import loadmat,savemat
 from glob import glob
 from mlabwrap import MatlabPipe
 from oceans.ff_tools import wrap_lon180, wrap_lon360
@@ -168,6 +170,23 @@ def extract_npz(fname):
 		exec("arrs.append(d['%s'])"%arr)
 	return arrs
 
+def mat2npz(matname):
+	"""
+	USAGE
+	-----
+	mat2npz(matname)
+
+	Extract variables stored in a .mat file,
+	and saves them in a .npz file.
+	"""
+	d = loadmat(matname)
+	_ = d.pop('__header__')
+	_ = d.pop('__globals__')
+	_ = d.pop('__version__')
+	npzname = matname[:-4] + '.npz'
+	np.savez(npzname,**d)
+	return None
+
 def bb_map(lons, lats, projection='merc', resolution='i'):
 	"""
 	USAGE
@@ -308,7 +327,7 @@ def wind_subset(times=(datetime(2009,12,28), datetime(2010,1,10)),
 	else:
 		return lon,lat,time,u,v
 
-def dl_goes(time=datetime(2013,9,13), dt=24, cloud_thresh=2.0, dest_dir='/home/andre/.goes_data/'):
+def dl_goes(time=datetime(2013,9,13), dt=24, dest_dir='./'):
 	"""
 	USAGE
 	-----
@@ -322,9 +341,6 @@ def dl_goes(time=datetime(2013,9,13), dt=24, cloud_thresh=2.0, dest_dir='/home/a
 
 	* `dt` is an integer representing the time resolution desired. Choose from `24` (default),
 	`3` or `1`. If `dt` is either 1 or 3, all images for each day in `time` will be downloaded.
-
-	* `cloud_thresh` is a float (0.0-100.) representing the cloudy pixel probability threshold.
-	Default is 2.0, meaning that all pixels whose cloud probability is >=2.0 percent will be masked.
 
     * `dest_dir` is the directory in which the downloaded data will be saved.
 
@@ -348,7 +364,7 @@ def dl_goes(time=datetime(2013,9,13), dt=24, cloud_thresh=2.0, dest_dir='/home/a
 		dd = int(datetime2doy(date)) # Get the julian day.
 		dd = str(dd).zfill(3)
 		head = 'ftp://podaac-ftp.jpl.nasa.gov/OceanTemperature/goes/L3/goes_6km_nrt/americas/%s/%s/' %(yyyy,dd)
-		filename = 'sst%sb_%s_%s' % (str(dt),yyyy,dd) # dt can be 1, 3 or 24 (hourly, 3-hourly or daily).
+		filename = 'sst%s?_%s_%s' % (str(dt),yyyy,dd) # dt can be 1, 3 or 24 (hourly, 3-hourly or daily).
 		url = head + filename                         # The 'b' character is only for 2008-present data.
 		cmd = "wget --tries=inf %s" %url
 		os.system(cmd) # Download file.
