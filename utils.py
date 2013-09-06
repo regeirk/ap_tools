@@ -14,7 +14,7 @@ __all__ = ['rot_vec',
            'mat2npz',
            'bb_map',
            'wind_subset',
-		   'dl_goes']
+           'dl_goes']
 
 import os
 import numpy as np
@@ -193,10 +193,10 @@ def bb_map(lons, lats, projection='merc', resolution='i'):
 	-----
 	m = bb_map(lons, lats, **kwargs)
 
-    Returns a Basemap instance with lon,lat bounding limits
-    inferred from the input arrays `lons`,`lats`.
-    Coastlines, countries, states, parallels and meridians
-    are drawn, and continents are filled.
+	Returns a Basemap instance with lon,lat bounding limits
+	inferred from the input arrays `lons`,`lats`.
+	Coastlines, countries, states, parallels and meridians
+	are drawn, and continents are filled.
 	"""
 	lons,lats = map(np.asanyarray, (lons,lats))
 	lonmin,lonmax = lons.min(),lons.max()
@@ -342,7 +342,7 @@ def dl_goes(time=datetime(2013,9,13), dt=24, dest_dir='./'):
 	* `dt` is an integer representing the time resolution desired. Choose from `24` (default),
 	`3` or `1`. If `dt` is either 1 or 3, all images for each day in `time` will be downloaded.
 
-    * `dest_dir` is the directory in which the downloaded data will be saved.
+	* `dest_dir` is the directory in which the downloaded data will be saved.
 
 	TODO
 	----
