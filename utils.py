@@ -6,15 +6,16 @@
 # E-mail:      paloczy@gmail.com
 
 __all__ = ['rot_vec',
-           'denan',
-           'wind2stress',
-           'gen_dates',
-           'fmt_isobath',
-           'extract_npz',
-           'mat2npz',
-           'bb_map',
-           'wind_subset',
-           'dl_goes']
+		   'denan',
+		   'wind2stress',
+		   'maximize',
+		   'gen_dates',
+		   'fmt_isobath',
+		   'extract_npz',
+		   'mat2npz',
+		   'bb_map',
+		   'wind_subset',
+		   'dl_goes']
 
 import os
 import numpy as np
@@ -67,6 +68,14 @@ def denan(arr):
 	"""
 	f = np.isnan(arr)
 	return arr[~f]
+
+def maximize():
+	"""
+	Maximizes current figure.
+	Works only if the window manager is "TkAgg".
+	"""
+	mng = plt.get_current_fig_manager()
+	mng.resize(*mng.window.maxsize())
 
 def wind2stress(u, v, formula='large_pond1981-modified'):
 	"""
