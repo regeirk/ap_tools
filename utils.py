@@ -6,9 +6,10 @@
 # E-mail:      paloczy@gmail.com
 
 __all__ = ['rot_vec',
+           'mnear',
 		   'denan',
 		   'wind2stress',
-		   'maximize',
+		   # 'maximize',
 		   'gen_dates',
 		   'fmt_isobath',
 		   'extract_npz',
@@ -30,6 +31,7 @@ from mlabwrap import MatlabPipe
 from oceans.ff_tools import wrap_lon180, wrap_lon360
 from netCDF4 import Dataset, num2date
 from pandas import Panel
+from gsw import distance
 
 def rot_vec(u, v, angle=-45):
 	"""
@@ -58,6 +60,28 @@ def rot_vec(u, v, angle=-45):
 	
 	return u_rot,v_rot
 
+def mnear(x, y, x0, y0):
+	"""
+	USAGE
+	-----
+	xmin,ymin = mnear(x, y, x0, y0)
+
+	Finds the the point in a (lons,lats) line
+	that is closest to a given (lon0,lat0) point.
+	"""
+	x,y,x0,y0 = map(np.asanyarray, (x,y,x0,y0))
+	point = (x0,y0)
+
+	d = np.array([])
+	for n in xrange(x.size):
+		xn,yn = x[n],y[n]
+		dn = distance((xn,x0),(yn,y0)) # Calculate distance point-wise.
+		d = np.append(d,dn)
+
+	idx = d.argmin()
+
+	return x[idx],y[idx]
+
 def denan(arr):
 	"""
 	USAGE
@@ -69,13 +93,13 @@ def denan(arr):
 	f = np.isnan(arr)
 	return arr[~f]
 
-def maximize():
-	"""
-	Maximizes current figure.
-	Works only if the window manager is "TkAgg".
-	"""
-	mng = plt.get_current_fig_manager()
-	mng.resize(*mng.window.maxsize())
+# def maximize():
+# 	"""
+# 	Maximizes current figure.
+# 	Works only if the window manager is "TkAgg".
+# 	"""
+# 	mng = plt.get_current_fig_manager()
+# 	mng.resize(*mng.window.maxsize())
 
 def wind2stress(u, v, formula='large_pond1981-modified'):
 	"""
