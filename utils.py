@@ -9,7 +9,7 @@ __all__ = ['rot_vec',
            'mnear',
 		   'denan',
 		   'wind2stress',
-		   # 'maximize',
+		   'maximize',
 		   'gen_dates',
 		   'fmt_isobath',
 		   'extract_npz',
@@ -21,6 +21,7 @@ __all__ = ['rot_vec',
 import os
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib
 from mpl_toolkits.basemap import Basemap
 from datetime import datetime,timedelta
 from times import doy2datetime,datetime2doy
@@ -93,13 +94,19 @@ def denan(arr):
 	f = np.isnan(arr)
 	return arr[~f]
 
-# def maximize():
-# 	"""
-# 	Maximizes current figure.
-# 	Works only if the window manager is "TkAgg".
-# 	"""
-# 	mng = plt.get_current_fig_manager()
-# 	mng.resize(*mng.window.maxsize())
+def maximize():
+	"""
+	Maximizes current figure.
+	"""
+	backend = matplotlib.backends.backend
+	mng = plt.get_current_fig_manager()
+
+	if backend=='TkAgg':                  # Tk window manager.
+		mng.resize(*mng.window.maxsize())
+	elif backend=='WxAgg':                # Wx window manager.
+		mng.frame.Maximize(True)
+	elif backend=='QtAgg':                # Qt window manager.
+		mng.window.showMaximized()
 
 def wind2stress(u, v, formula='large_pond1981-modified'):
 	"""
