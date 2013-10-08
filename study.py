@@ -5,7 +5,7 @@
 # Author:      André Palóczy Filho
 # E-mail:      paloczy@gmail.com
 
-__all__ = ['dynmodes']
+__all__ = ['ekman','dynmodes']
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -15,6 +15,69 @@ from oceans.plotting import rstyle
 
 plt.rcParams['text.usetex'] = True
 plt.rcParams['text.latex.unicode'] = True
+
+def ekman(r=4., plot=True, savefig=False):
+  """
+  Plots the solution of the Ekman problem
+  in a vertically finite ocean of depth H.
+  Wind is purely meridional, f-plane, linearized
+  steady-state linearized solutions. The wind is
+  imposed impulsively over the initially at rest
+  water column.
+  """
+  tau0y = 0.08                          # Wind stress, meridional-only [Pa]
+  rho = 1025.                           # Seawater density             [kg m^{-3}]
+  A = 5e-2                              # Eddy viscosity coefficient   [m^{2} s^{-1}]
+  theta0 = -30.                         # (Reference) latitude.                            [ ]
+  omega = 2*np.pi/86400.                # Planetary angular frequency.                     [s^{-1}]
+  f = 2*omega*np.sin(theta0*np.pi/180.) # Coriolis parameter.                              [s^{-1}]
+  d = np.sqrt(2*A/np.abs(f))            # Ekman layer depth.                               [m]
+  H = r*d                               # Bottom depth.                                    [m]
+  st = "H, d, H/d = %s, %s, %s"%(str(H),str(d),str(r))
+  np.disp(st)
+  z = np.linspace(0, H, 1000.)
+
+  # Solutions for u and v.
+  C = tau0y/(rho*A)
+  Denom = np.sinh(r)*np.sin(r) + np.cosh(r)*np.cos(r)
+  u = C*np.sinh(z/d)*np.cos(z/d)/Denom
+  v = C*np.cosh(z/d)*np.sin(z/d)/Denom
+
+  # Veering angle at the surface.
+  ang = np.arctan(v[-1]/u[-1])*180/np.pi
+  st = "Veering angle at the surface: %s"%str(ang)
+  np.disp(st)
+
+  if plot:
+    # u and v profiles.
+    plt.close('all')
+    fig,ax = plt.subplots()
+    ax.hold(True)
+    ax.plot(u,z,'k-',label=ur'Zonal velocity, u$_{Ek}$')
+    ax.plot(v,z,'k--',label=ur'Meridional velocity, v$_{Ek}$')
+    ax.set_xlabel(ur'Velocity [cm s$^{-1}$]')
+    ax.set_ylabel(ur'Depth [m]')
+    ax.legend(loc='best',fontsize=13)
+    ax.hold(False)
+    rstyle(ax)
+    if savefig:
+		plt.savefig('uv.png',bbox='tight')
+
+    # Hodograph plot.
+    fig,ax = plt.subplots()
+    ax.hold(True)
+    ax.plot(u,v,'k-',linewidth=1.5)
+    # sx = ax.scatter(u,v,c=z,cmap=plt.cm.binary,linewidths=0.,marker='o')
+    # cb = plt.colorbar(mappable=sx)
+    # cb.set_label(ur'Depth [m]')
+    ax.set_xlabel(ur'Zonal velocity [cm s$^{-1}$]')
+    ax.set_ylabel(ur'Meridional velocity [cm s$^{-1}$]')
+    ax.hold(False)
+    rstyle(ax)
+    if savefig:
+		plt.savefig('hodo.png',bbox='tight')
+
+    return z,u,v
 
 def dynmodes(n=6, lat0=5., plot=False, model='Fratantoni_etal1995'):
 	"""
