@@ -6,6 +6,8 @@
 # E-mail:      paloczy@gmail.com
 
 __all__ = ['rot_vec',
+           'lon180to360'
+           'lon360to180'
            'mnear',
 		   'denan',
 		   'wind2stress',
@@ -29,7 +31,6 @@ from dateutil import rrule,parser
 from scipy.io import loadmat,savemat
 from glob import glob
 from mlabwrap import MatlabPipe
-from oceans.ff_tools import wrap_lon180, wrap_lon360
 from netCDF4 import Dataset, num2date
 from pandas import Panel
 from gsw import distance
@@ -47,7 +48,7 @@ def rot_vec(u, v, angle=-45):
 
 	Example
 	-------
-	>>> fom matplotlib.pyplot import quiver
+	>>> from matplotlib.pyplot import quiver
 	>>> from ap_tools.utils import rot_vec
 	>>> u = -1.
 	>>> v = -1.
@@ -60,6 +61,22 @@ def rot_vec(u, v, angle=-45):
 	v_rot = -u*np.sin(ang) + v*np.cos(ang) # Usually the along-shore component.
 	
 	return u_rot,v_rot
+
+def lon180to360(lon):
+	"""
+	Converts longitude values in the range [-180,+180]
+	to longitude values in the range [0,360].
+	"""
+	lon = np.asanyarray(lon)
+	return (lon + 360.0) % 360.0
+
+def lon360to180(lon):
+	"""
+	Converts longitude values in the range [0,360]
+	to longitude values in the range [-180,+180].
+	"""
+	lon = np.asanyarray(lon)
+	return ((lon + 180.) % 360.) - 180.
 
 def mnear(x, y, x0, y0):
 	"""
@@ -82,6 +99,25 @@ def mnear(x, y, x0, y0):
 	idx = d.argmin()
 
 	return x[idx],y[idx]
+
+# def subset(x, y, arr, xmin, xmax, ymin, ymax):
+# 	"""
+# 	USAGE
+# 	-----
+# 	x,y,z = subset(X,Y,Z,xmin,xmax,ymin,ymax)
+
+# 	Returns a subset of an array `Z(X,Y)`
+# 	and its subsetted axes `x` and `y`.
+# 	"""
+# 	if np.logical_and(x.ndim==1,y.ndim==1):
+# 		x,y = np.meshgrid(x,y)
+
+# 	fx = np.logical_and(x >= xmin, x <= xmax)
+# 	fy = np.logical_and(y >= ymin, y <= ymax)
+# 	arr = arr[fx,fy]
+# 	x = x[fx,fy]
+# 	y = y[fx,fy]
+# 	return x,y,arr
 
 def denan(arr):
 	"""
@@ -261,15 +297,11 @@ def bb_map(lons, lats, projection='merc', resolution='i'):
 	return m
 
 def wind_subset(times=(datetime(2009,12,28), datetime(2010,1,10)),
-	dt='daily', llcrnrlon=-45, urcrnrlon=-35, llcrnrlat=-25, urcrnrlat=-18, return_panels=True):
+	dt='daily', llcrnrlon=-45, urcrnrlon=-35, llcrnrlat=-25, urcrnrlat=-18):
 	"""
 	USAGE
 	-----
-	u,v = wind_subset(..., return_panels=True)
-
-	*OR*
-
-	[lon,lat,time,u,v] = wind_subset(..., return_panels=False)
+	u,v = wind_subset(...)
 
 	Gets wind vectors from the NCDC/NOAA Blended Seawinds L4 product,
 	given a given lon, lat, time bounding box.
@@ -288,17 +320,9 @@ def wind_subset(times=(datetime(2009,12,28), datetime(2010,1,10)),
 	* llcrnrlon, urcrnrlon: Longitude band wanted.
 	* llcrnrlat, urcrnrlat: Latitude band wanted.
 
-	* return_panels: Whether or not to return data subsets
-	  as a pandas Panels. Returns lon,lat,time,u,v numpy
-	  arrays if `False`. Defalts to `True`.
-
 	Returns
 	-------
 	u,v: pandas Panels containing the data subsets.
-
-	*OR*
-
-	lon,lat,time,u,v: 1D numpy arrays containing the data subset.
 
 	Example
 	-------
@@ -310,8 +334,8 @@ def wind_subset(times=(datetime(2009,12,28), datetime(2010,1,10)),
 	url = head + tail[dt]
 	nc = Dataset(url)
 
-	llcrnrlon, urcrnrlon = map(wrap_lon360, (llcrnrlon, urcrnrlon))
-	lon = wrap_lon360(nc.variables.pop('lon')[:])
+	lon = nc.variables.pop('lon')[:]
+	lon = lon360to180(lon) # Longitude is in the [0,360] range, BB is in the [-180,+180] range.
 	lat = nc.variables.pop('lat')[:]
 	time = nc.variables.pop('time')
 	time = num2date(time[:],time.units,calendar='standard')
@@ -356,16 +380,27 @@ def wind_subset(times=(datetime(2009,12,28), datetime(2010,1,10)),
 	v = nc.variables['v'][maskt,0,masky,maskx]
 	np.disp('Downloaded.')
 
-	lon = wrap_lon180(lon)
 	lat,lon,time,u,v = map(np.atleast_1d, [lat,lon,time,u,v])
 
-	# Returns data as pandas Panels or as numpy arrays.
-	if return_panels:
-		U = Panel(data=u, items=time, major_axis=lat, minor_axis=lon)
-		V = Panel(data=v, items=time, major_axis=lat, minor_axis=lon)
-		return U,V
-	else:
-		return lon,lat,time,u,v
+	# Sets the panels.
+	U = Panel(data=u, items=time, major_axis=lat, minor_axis=lon)
+	V = Panel(data=v, items=time, major_axis=lat, minor_axis=lon)
+	
+	# Sorting major axis (longitude) to fix the crossing of the 0º meridian.
+	U = U.sort_index(axis=2)
+	V = V.sort_index(axis=2)
+
+    # Retrieves the u,v arrays to fix masked values.
+	u,v,lon,lat = map(np.atleast_1d, (U.values,V.values,U.minor_axis.values,U.major_axis.values))
+	fill_value = -9999.
+	u = np.ma.masked_equal(u, fill_value)
+	v = np.ma.masked_equal(v, fill_value)
+
+	# Resets the Panels with the sorted and masked u,v arrays.
+	U = Panel(data=u, items=time, major_axis=lat, minor_axis=lon)
+	V = Panel(data=v, items=time, major_axis=lat, minor_axis=lon)
+
+	return U,V
 
 def dl_goes(time=datetime(2013,9,13), dt=24, dest_dir='./'):
 	"""
@@ -463,8 +498,8 @@ def dl_goes(time=datetime(2013,9,13), dt=24, dest_dir='./'):
 # 	url = head + tail[dt]
 # 	nc = Dataset(url)
 
-# 	llcrnrlon, urcrnrlon = map(wrap_lon360, (llcrnrlon, urcrnrlon))
-# 	lon = wrap_lon360(nc.variables.pop('lon')[:])
+# 	llcrnrlon, urcrnrlon = map(lon180to360, (llcrnrlon, urcrnrlon))
+# 	lon = lon180to360(nc.variables.pop('lon')[:])
 # 	lat = nc.variables.pop('lat')[:]
 # 	time = nc.variables.pop('time')
 # 	time = num2date(time[:], time.units, calendar='standard')
@@ -486,7 +521,7 @@ def dl_goes(time=datetime(2013,9,13), dt=24, dest_dir='./'):
 # 	sst = nc.variables['analyzed_sst'][maskt,0,masky,maskx]
 # 	np.disp('Done.')
 
-# 	lon = wrap_lon180(lon)
+# 	lon = lon360to180(lon)
 # 	lat,lon,time,u,v = map(np.atleast_1d, [lat,lon,time,sst])
 
 # 	# Returns data as pandas Panels or as numpy arrays.
