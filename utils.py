@@ -16,7 +16,8 @@ __all__ = ['rot_vec',
 		   'fmt_isobath',
 		   'extract_npz',
 		   'mat2npz',
-		   'bb_map']
+		   'bb_map',
+		   'dots_dualcolor']
 
 import os
 import numpy as np
@@ -293,12 +294,27 @@ def bb_map(lons, lats, projection='merc', resolution='i'):
 	m.drawstates(zorder=10)
 	m.drawcountries(linewidth=2.0, zorder=10)
 	m.drawmapboundary(zorder=9999)
-	m.drawmeridians(np.arange(np.floor(lonmin), np.ceil(lonmax), 1), linewidth=0.15, labels=[1, 0, 1, 0],zorder=12)
-	m.drawparallels(np.arange(np.floor(latmin), np.ceil(latmax), 1), linewidth=0.15, labels=[1, 0, 0, 0],zorder=12)
+	m.drawmeridians(np.arange(np.floor(lonmin), np.ceil(lonmax), 1), linewidth=0.15, labels=[1, 0, 1, 0], zorder=12)
+	m.drawparallels(np.arange(np.floor(latmin), np.ceil(latmax), 1), linewidth=0.15, labels=[1, 0, 0, 0], zorder=12)
 	plt.ion()
 	return m
 
+def dots_dualcolor(x, y, z, thresh=20., color_low='b', color_high='r', marker='o', markersize=5):
+	"""
+	USAGE
+	-----
+    dots_dualcolor(x, y, z, thresh=20., color_low='b', color_high='r')
 
+	Plots dots colored with a dual-color criterion,
+	separated by a threshold value.
+	"""
+	ax = plt.gca()
+	# Below-threshold dots.
+	f=z<=thresh
+	ax.plot(x[f], y[f], lw=0, marker=marker, ms=markersize, mfc=color_low, mec=color_low)
+	# Above-threshold dots.
+	f=z>thresh
+	ax.plot(x[f], y[f], lw=0, marker=marker, ms=markersize, mfc=color_high, mec=color_high)
 
 
 
