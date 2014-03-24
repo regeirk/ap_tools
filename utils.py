@@ -6,7 +6,7 @@
 # E-mail:      paloczy@gmail.com
 
 __all__ = ['rot_vec',
-           'lon180to360'
+           'lon180to360',
            'lon360to180'
            'mnear',
 		   'denan',
