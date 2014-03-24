@@ -16,7 +16,7 @@ from netCDF4 import Dataset
 from ap_tools.utils import lon360to180
 
 def topo_subset(llcrnrlon=-42, urcrnrlon=-35, llcrnrlat=-23,
-                urcrnrlat=-14, tfile='/home/andre/lado/general_data/smith_sandwell/topo30sec.grd'):
+                urcrnrlat=-14, tfile='/home/andre/lado/general_data/smith_sandwell/topo30.grd'):
     """
     Get a subset from an etopo1, etopo2 or Smith and Sandwell topography file.
 
