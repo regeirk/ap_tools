@@ -7,8 +7,10 @@ ap_tools
 
 __all__ = ['utils',
            'sat',
-           'study']
+           'study'
+           'datasets']
 
 import utils
 import sat
 import study
+import datasets
