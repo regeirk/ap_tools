@@ -7,7 +7,7 @@
 
 __all__ = ['rot_vec',
            'lon180to360',
-           'lon360to180'
+           'lon360to180',
            'mnear',
 		   'denan',
 		   'wind2stress',
@@ -152,9 +152,9 @@ def wind2stress(u, v, formula='large_pond1981-modified'):
 	Converts u,v wind vector components to taux,tauy
 	wind stress vector components.
 	"""
-	rho_air = 1.226               # kg/m3
-	mag = np.sqrt(u**2+v**2)      # m/s
-	Cd = np.zeros( mag.size ) # Drag coefficient.
+	rho_air = 1.226            # kg/m3
+	mag = np.sqrt(u**2+v**2)   # m/s
+	Cd = np.zeros( mag.shape ) # Drag coefficient.
 
 	if formula=='large_pond1981-modified':
 		# Large and Pond (1981) formula
