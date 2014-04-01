@@ -34,16 +34,18 @@ from netCDF4 import Dataset, num2date
 from pandas import Panel
 from gsw import distance
 
-def rot_vec(u, v, angle=-45):
+def rot_vec(u, v, angle=-45, degrees=True):
 	"""
 	USAGE
 	-----
-	u_rot,v_rot = rot_vec(u,v,angle=-45.)
+	u_rot,v_rot = rot_vec(u,v,angle=-45.,degrees=True)
 
 	Returns the rotated vector components (`u_rot`,`v_rot`)
 	from the zonal-meridional input vector components (`u`,`v`).
-	The rotation is done using the angle `ang` in degrees,
-	positive counterclockwise (trigonometric convention).
+	The rotation is done using the angle `angle` positive counterclockwise
+	(trigonometric convention). If `degrees` is set to `True``(default),
+	then `angle` is converted to radians.
+	is
 
 	Example
 	-------
@@ -54,10 +56,11 @@ def rot_vec(u, v, angle=-45):
 	>>> u2,v2 = rot_vec(u,v, angle=-30.)
 	"""
 	u,v = map(np.asanyarray, (u,v))
-	ang = angle*np.pi/180. # Degrees to radians.
+	if degrees:
+		angle = angle*np.pi/180. # Degrees to radians.
 
-	u_rot = +u*np.cos(ang) + v*np.sin(ang) # Usually the across-shore component.
-	v_rot = -u*np.sin(ang) + v*np.cos(ang) # Usually the along-shore component.
+	u_rot = +u*np.cos(angle) + v*np.sin(angle) # Usually the across-shore component.
+	v_rot = -u*np.sin(angle) + v*np.cos(angle) # Usually the along-shore component.
 	
 	return u_rot,v_rot
 
