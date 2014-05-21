@@ -35,15 +35,17 @@
 #                                                                                           #
 # André Palóczy Filho                                                                       #
 # September 2012                                                                            #
+# Modified May 2014 (fixed file sorting, using natsort now)                                 #
 #############################################################################################
 from gimpfu import *
 from gimpenums import *
 from os import sep
 from glob import glob
+from natsort import natsorted
 
 def Makegif(source, globpattern, animname, wid, hei, delay):
   Files = glob(source + sep + globpattern)                          # Getting the path of all images with glob
-  Files.sort()
+  Files = natsorted(Files)
   image = pdb.gimp_image_new(wid,hei,RGB)
   for ImageFileName in Files:
     try:
@@ -71,14 +73,14 @@ register(
   "This script creates an animated gif from a list of images inside a directory.", # detailed description.
   "André Palóczy",                                                                 # developer.
   "IOUSP",                                                                         # organization.
-  "June 2012",                                                                     # date.
+  "May 2014",                                                                      # date.
   "<Toolbox>/MyScripts/Batch gif generator",                                       # Gimp GUI menu location of this plug-in.
   "",                                                                              # types of images accepted by the plug-in (if "", does not require image to run).
   [
    (PF_DIRNAME, "source_dirname", "Source directory", "./figures"),
    (PF_STRING, "globpattern", "Globpattern of the images to be animated", "*"),
    (PF_STRING, "gif_name", "Name of GIF animation to be created", "anim.gif"),
-   (PF_INT, "figure_width", "Height of image, in pixels", 500),
+   (PF_INT, "figure_width", "Width of image, in pixels", 500),
    (PF_INT, "figure_height", "Height of image, in pixels", 500),
    (PF_INT, "delay", "Delay between frames, in ms", 500),
   ],       # input parameters.
