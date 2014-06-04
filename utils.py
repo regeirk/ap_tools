@@ -9,16 +9,17 @@ __all__ = ['rot_vec',
            'lon180to360',
            'lon360to180',
            'mnear',
-		   'denan',
-		   'smoo2',
-		   'wind2stress',
-		   'maxwindow',
-		   'gen_dates',
-		   'fmt_isobath',
-		   'extract_npz',
-		   'mat2npz',
-		   'bb_map',
-		   'dots_dualcolor']
+           'denan',
+           'point_in_poly',
+           'smoo2',
+           'wind2stress',
+           'maxwindow',
+           'gen_dates',
+           'fmt_isobath',
+           'extract_npz',
+           'mat2npz',
+           'bb_map',
+           'dots_dualcolor']
 
 import os
 import numpy as np
@@ -103,24 +104,33 @@ def mnear(x, y, x0, y0):
 
 	return x[idx],y[idx]
 
-# def subset(x, y, arr, xmin, xmax, ymin, ymax):
-# 	"""
-# 	USAGE
-# 	-----
-# 	x,y,z = subset(X,Y,Z,xmin,xmax,ymin,ymax)
+def point_in_poly(x,y,poly):
+	"""
+	isinside = point_in_poly(x,y,poly)
 
-# 	Returns a subset of an array `Z(X,Y)`
-# 	and its subsetted axes `x` and `y`.
-# 	"""
-# 	if np.logical_and(x.ndim==1,y.ndim==1):
-# 		x,y = np.meshgrid(x,y)
+	Determine if a point is inside a given polygon or not
+	Polygon is a list of (x,y) pairs. This fuction
+	returns True or False.  The algorithm is called
+	'Ray Casting Method'.
 
-# 	fx = np.logical_and(x >= xmin, x <= xmax)
-# 	fy = np.logical_and(y >= ymin, y <= ymax)
-# 	arr = arr[fx,fy]
-# 	x = x[fx,fy]
-# 	y = y[fx,fy]
-# 	return x,y,arr
+	Taken from http://pseentertainmentcorp.com/smf/index.php?topic=545.0
+	"""
+	n = len(poly)
+	inside = False
+
+	p1x,p1y = poly[0]
+	for i in range(n+1):
+		p2x,p2y = poly[i % n]
+		if y > min(p1y,p2y):
+			if y <= max(p1y,p2y):
+				if x <= max(p1x,p2x):
+					if p1y != p2y:
+						xinters = (y-p1y)*(p2x-p1x)/(p2y-p1y)+p1x
+					if p1x == p2x or x <= xinters:
+						inside = not inside
+		p1x,p1y = p2x,p2y
+
+	return inside
 
 def smoo2(A, hei, wid, kind='hann', badflag=-9999, beta=14):
 	"""
