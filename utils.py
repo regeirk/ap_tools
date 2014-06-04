@@ -9,6 +9,7 @@ __all__ = ['rot_vec',
            'lon180to360',
            'lon360to180',
            'mnear',
+           'refine',
            'denan',
            'point_in_poly',
            'smoo2',
@@ -103,6 +104,34 @@ def mnear(x, y, x0, y0):
 	idx = d.argmin()
 
 	return x[idx],y[idx]
+
+def refine(line, nref=100, close=True):
+	"""
+	USAGE
+	-----
+	ref_line = refine(line, nref=100, close=True)
+
+	Given a 1-D sequence of points 'line', returns a
+	new sequence 'ref_line', which is built by linearly
+	interpolating 'nref' points between each pair of
+	subsequent points in the original line.
+
+	If 'close' is True (default), the first value of
+	the original line is repeated at the end of the
+	refined line, as in a closed polygon.
+	"""
+	line = np.squeeze(np.asanyarray(line))
+
+	if close:
+		line = np.append(line,line[0])
+
+	ref_line = np.array([])
+	for n in xrange(line.shape[0]-1):
+		xi, xf = line[n], line[n+1]
+		xref = np.linspace(xi,xf,nref)
+		ref_line = np.append(ref_line, xref)
+
+	return ref_line
 
 def point_in_poly(x,y,poly):
 	"""
