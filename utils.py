@@ -13,6 +13,7 @@ __all__ = ['rot_vec',
            'denan',
            'point_in_poly',
            'smoo2',
+           'topo_slope',
            'wind2stress',
            'maxwindow',
            'gen_dates',
@@ -325,6 +326,45 @@ def maxwindow():
 		mng.frame.Maximize(True)
 	elif backend=='QT4Agg':               # Qt window manager.
 		mng.window.showMaximized()
+
+def topo_slope(lon, lat, h):
+	"""
+	USAGE
+	-----
+	lons, lats, slope = topo_slope(lon, lat, h)
+
+	Calculates bottom slope for a topography fields 'h' at
+	coordinates ('lon', 'lat') using first-order finite differences.
+	The output arrays have shape (M-1,L-1), where M,L = h.shape().
+	"""
+	lon,lat,h = map(np.asanyarray, (lon,lat,h))
+	deg2m = 1852.*60.    # m/deg.
+	deg2rad = np.pi/180. # rad/deg.
+
+	x = lon*deg2m*np.cos(lat*deg2rad)
+	y = lat*deg2m
+
+	# First-order differences, accurate to O(dx) and O(dy),
+	# respectively.
+	sx = (h[:,1:] - h[:,:-1]) / (x[:,1:] - x[:,:-1])
+	sy = (h[1:,:] - h[:-1,:]) / (y[1:,:] - y[:-1,:])
+
+	# Finding the values of the derivatives sx and sy
+	# at the same location in physical space.
+	sx = 0.5*(sx[1:,:]+sx[:-1,:])
+	sy = 0.5*(sy[:,1:]+sy[:,:-1])
+
+	# Calculating the bottom slope.
+	slope = np.sqrt(sx**2 + sy**2)
+
+	# Finding the lon,lat coordinates of the
+	# values of the derivatives sx and sy.
+	lons = 0.5*(lon[1:,:]+lon[:-1,:])
+	lats = 0.5*(lat[1:,:]+lat[:-1,:])
+	lons = 0.5*(lons[:,1:]+lons[:,:-1])
+	lats = 0.5*(lats[:,1:]+lats[:,:-1])
+
+	return lons, lats, slope
 
 def wind2stress(u, v, formula='large_pond1981-modified'):
 	"""
