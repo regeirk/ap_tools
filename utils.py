@@ -12,6 +12,7 @@ __all__ = ['rot_vec',
            'refine',
            'denan',
            'point_in_poly',
+           'weim',
            'smoo2',
            'topo_slope',
            'wind2stress',
@@ -162,6 +163,113 @@ def point_in_poly(x,y,poly):
 
 	return inside
 
+def weim(x, N, kind='hann', badflag=-9999, beta=14):
+	"""
+	Usage
+	-----
+	xs = weim(x, N, kind='hann', badflag=-9999, beta=14)
+
+	Description
+	-----------
+	Calculates the smoothed array 'xs' from the original array 'x' using the specified
+	window of type 'kind' and size 'N'. 'N' must be an odd number.
+
+	Parameters
+	----------
+	x       : 1D array
+	        Array to be smoothed.
+
+	N       : integer
+	        Window size. Must be odd.
+
+	kind    : string, optional
+	        One of the window types available in the numpy module:
+
+	        hann (default) : Gaussian-like. The weight decreases toward the ends. Its end-points are zeroed.
+	        hamming        : Similar to the hann window. Its end-points are not zeroed, therefore it is
+	                         discontinuous at the edges, and may produce undesired artifacts.
+	        blackman       : Similar to the hann and hamming windows, with sharper ends.
+	        bartlett       : Triangular-like. Its end-points are zeroed.
+	        kaiser         : Flexible shape. Takes the optional parameter "beta" as a shape parameter.
+	                         For beta=0, the window is rectangular. As beta increases, the window gets narrower.
+
+	        Refer to the numpy functions for details about each window type.
+
+	badflag : float, optional
+	        The bad data flag. Elements of the input array 'A' holding this value are ignored.
+
+	beta    : float, optional
+	        Shape parameter for the kaiser window. For windows other than the kaiser window,
+	        this parameter does nothing.
+
+	Returns
+	-------
+	xs      : 1D array
+	        The smoothed array.
+
+	---------------------------------------
+	André Palóczy Filho (paloczy@gmail.com)
+	June 2012
+	==============================================================================================================
+	"""
+	###########################################
+	### Checking window type and dimensions ###
+	###########################################
+	kinds = ['hann', 'hamming', 'blackman', 'bartlett', 'kaiser']
+	if ( kind not in kinds ):
+		raise ValueError('Invalid window type requested: %s'%kind)
+
+	if np.mod(N,2) == 0:
+		raise ValueError('Window size must be odd')
+
+	###########################
+	### Creating the window ###
+	###########################
+	if ( kind == 'kaiser' ): # If the window kind is kaiser (beta is required).
+		wstr = 'np.kaiser(N, beta)'
+	else: # If the window kind is hann, hamming, blackman or bartlett (beta is not required).
+		if kind == 'hann':
+			kind = 'hanning'
+
+	wstr = 'np.' + kind + '(N)'
+	w = eval(wstr)
+
+	x = np.asarray(x).flatten()
+	Fnan = np.isnan(x).flatten()
+
+	ln = (N-1)/2
+	lx = x.size
+	lf = lx - ln
+	xs = np.nan*np.ones(lx)
+
+	# Eliminating bad data from mean computation.
+	fbad=x==badflag
+	x[fbad] = np.nan
+
+	for i in xrange(lx):
+		if i <= ln:
+			xx = x[:ln+i+1]
+			ww = w[ln-i:]
+		elif i >= lf:
+			xx = x[i-ln:]
+			ww = w[:lf-i-1]
+		else:
+			xx = x[i-ln:i+ln+1]
+			ww = w.copy()
+
+		f = ~np.isnan(xx) # Counting only NON-NaNs, both in the input array and in the window points.
+		xx = xx[f]
+		ww = ww[f]
+
+		if f.sum() == 0: # Thou shalt not divide by zero.
+			xs[i] = x[i]
+		else:
+			xs[i] = np.sum(xx*ww)/np.sum(ww)
+
+		xs[Fnan] = np.nan # Assigning NaN to the positions holding NaNs in the input array.
+
+	return xs
+
 def smoo2(A, hei, wid, kind='hann', badflag=-9999, beta=14):
 	"""
 	Usage
@@ -230,13 +338,13 @@ def smoo2(A, hei, wid, kind='hann', badflag=-9999, beta=14):
 	##############################
 	### Creating the 2D window ###
 	##############################
-	if ( kind == 'kaiser' ): # if the window kind is kaiser (beta is required)
+	if ( kind == 'kaiser' ): # If the window kind is kaiser (beta is required).
 		wstr = 'np.outer(np.kaiser(hei, beta), np.kaiser(wid, beta))'
-	else: # if the window kind is hann, hamming, blackman or bartlett (beta is not required)
+	else: # If the window kind is hann, hamming, blackman or bartlett (beta is not required).
 		if kind == 'hann':
-			kind = 'hanning' # converting the correct window name (Hann) to the numpy function name (numpy.hanning)
+			kind = 'hanning'
 
-		# computing outer product to make a 2D window out of the original 1d windows
+		# computing outer product to make a 2D window out of the original 1d windows.
 		wstr = 'np.outer(np.' + kind + '(hei), np.' + kind + '(wid))'
 		wdw = eval(wstr)
 
@@ -247,7 +355,7 @@ def smoo2(A, hei, wid, kind='hann', badflag=-9999, beta=14):
 
 	for i in xrange(imax):
 		for j in xrange(jmax):
-			### default window parameters
+			### Default window parameters.
 			wupp = 0
 			wlow = hei
 			wlef = 0
@@ -255,7 +363,7 @@ def smoo2(A, hei, wid, kind='hann', badflag=-9999, beta=14):
 			lh = np.floor(hei/2)
 			lw = np.floor(wid/2)
 
-			### default array ranges (functions of the i,j indices)
+			### Default array ranges (functions of the i,j indices).
 			upp = i-lh
 			low = i+lh+1
 			lef = j-lw
@@ -264,23 +372,23 @@ def smoo2(A, hei, wid, kind='hann', badflag=-9999, beta=14):
 			##################################################
 			### Tiling window and input array at the edges ###
 			##################################################
-			#upper edge
+			# Upper edge.
 			if upp < 0:
 				wupp = wupp-upp
 				upp = 0
 
-			#left edge
+			# Left edge.
 			if lef < 0:
 				wlef = wlef-lef
 				lef = 0
 
-			#bottom edge
+			# Bottom edge.
 			if low > imax:
 				ex = low-imax
 				wlow = wlow-ex
 				low = imax
 
-			#right edge
+			# Right edge.
 			if rig > jmax:
 				ex = rig-jmax
 				wrig = wrig-ex
@@ -292,13 +400,13 @@ def smoo2(A, hei, wid, kind='hann', badflag=-9999, beta=14):
 			Ac = A[upp:low, lef:rig]
 			wdwc = wdw[wupp:wlow, wlef:wrig]
 			fnan = np.isnan(Ac)
-			Ac[fnan] = 0; wdwc[fnan] = 0 # eliminating NaNs from mean computation
+			Ac[fnan] = 0; wdwc[fnan] = 0 # Eliminating NaNs from mean computation.
 			fbad = Ac==badflag
-			wdwc[fbad] = 0               # eliminating bad data from mean computation
+			wdwc[fbad] = 0               # Eliminating bad data from mean computation.
 			a = Ac * wdwc
 			As[i,j] = a.sum() / wdwc.sum()
 
-	As[Fnan] = np.nan # Assigning NaN to the positions holding NaNs in the input array
+	As[Fnan] = np.nan # Assigning NaN to the positions holding NaNs in the input array.
 
 	return As
 
