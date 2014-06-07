@@ -7,12 +7,72 @@
 # Author:      André Palóczy Filho
 # E-mail:      paloczy@gmail.com
 
-__all__ = ['make_flat_ini']
+__all__ = ['maxvel_ke',
+           'make_flat_ini']
 
 import numpy as np
 from scipy.interpolate import interp1d
 from romslab import RomsGrid, RunSetup
+from netCDF4 import Dataset
 from pyroms.vgrid import s_coordinate, s_coordinate_2, s_coordinate_4
+
+def maxvel_ke(avgfile, verbose=False):
+	"""
+	USAGE
+	-----
+	t, maxvel, KEavg = maxvel_ke(avgfile, verbose=False)
+
+	Calculates domain-averaged kinetic energy and maximum velocity
+	for each time record of a ROMS *.avg or *.his file.
+	"""
+	nc = Dataset(avgfile)
+
+	try:
+		U = nc.variables['u']
+		V = nc.variables['v']
+		uvrho = False
+	except KeyError:
+		U = nc.variables['u_eastward']
+		V = nc.variables['v_northward']
+		uvrho = True
+
+	nt = U.shape[0]
+	t = nc.variables['ocean_time'][:]
+	t = t - t[0]
+
+	maxvel = np.array([])
+	KEavg = np.array([])
+	for ti in xrange(nt):
+		tp = ti + 1
+		print "Processing time record %s of %s"%(tp,nt)
+		uu = U[ti,:]
+		vv = V[ti,:]
+
+		if not uvrho:
+			# Calculate u and v at PSI-points.
+			u = 0.5*(uu[:,1:,:] + uu[:,:-1,:])
+			v = 0.5*(vv[:,:,1:] + vv[:,:,:-1])
+		else:
+			# U and V both at RHO-points, no reshaping necessary.
+			u = uu
+			v = vv
+			pass
+
+		# Maximum velocity and domain-averaged kinetic energy.
+		u2 = u.ravel()**2
+		v2 = v.ravel()**2
+		magmax = np.sqrt(u2+v2).max()
+
+		ke = 0.5*(u2 + v2)
+		ke = ke.mean()
+
+		if verbose:
+			print "%.2f m/s, %f m2/s2"%(magmax,ke)
+
+		KEavg = np.append(KEavg,ke)
+		maxvel = np.append(maxvel,magmax)
+
+	return t, maxvel, KEavg
 
 def make_flat_ini(grdfile, setup_file, profile_z, profile_T, profile_S, return_all=False):
 	"""
