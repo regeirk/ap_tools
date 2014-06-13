@@ -16,13 +16,13 @@ from romslab import RomsGrid, RunSetup
 from netCDF4 import Dataset
 from pyroms.vgrid import s_coordinate, s_coordinate_2, s_coordinate_4
 
-def maxvel_ke(avgfile, verbose=False):
+def vel_ke(avgfile, verbose=False):
 	"""
 	USAGE
 	-----
-	t, maxvel, KEavg = maxvel_ke(avgfile, verbose=False)
+	t, avgvel, maxvel, KEavg = vel_ke(avgfile, verbose=False)
 
-	Calculates domain-averaged kinetic energy and maximum velocity
+	Calculates domain-averaged kinetic energy, mean and maximum velocity
 	for each time record of a ROMS *.avg or *.his file.
 	"""
 	nc = Dataset(avgfile)
@@ -40,6 +40,7 @@ def maxvel_ke(avgfile, verbose=False):
 	t = nc.variables['ocean_time'][:]
 	t = t - t[0]
 
+	avgvel = np.array([])
 	maxvel = np.array([])
 	KEavg = np.array([])
 	for ti in xrange(nt):
@@ -61,18 +62,21 @@ def maxvel_ke(avgfile, verbose=False):
 		# Maximum velocity and domain-averaged kinetic energy.
 		u2 = u.ravel()**2
 		v2 = v.ravel()**2
-		magmax = np.sqrt(u2+v2).max()
+		mag = np.sqrt(u2+v2)
+		magavg = mag.mean()
+		magmax = mag.max()
 
 		ke = 0.5*(u2 + v2)
 		ke = ke.mean()
 
 		if verbose:
-			print "%.2f m/s, %f m2/s2"%(magmax,ke)
+			print "meanvel, maxvel, avgKE = %.2f m/s, %.2f m/s, %f m2/s2"%(magavg,magmax,ke)
 
 		KEavg = np.append(KEavg,ke)
+		avgvel = np.append(avgvel,magavg)
 		maxvel = np.append(maxvel,magmax)
 
-	return t, maxvel, KEavg
+	return t, avgvel, maxvel, KEavg
 
 def make_flat_ini(grdfile, setup_file, profile_z, profile_T, profile_S, return_all=False):
 	"""
