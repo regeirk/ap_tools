@@ -7,7 +7,7 @@
 # Author:      André Palóczy Filho
 # E-mail:      paloczy@gmail.com
 
-__all__ = ['maxvel_ke',
+__all__ = ['vel_ke',
            'make_flat_ini']
 
 import numpy as np
@@ -20,36 +20,60 @@ def vel_ke(avgfile, verbose=False):
 	"""
 	USAGE
 	-----
-	t, avgvel, maxvel, KEavg = vel_ke(avgfile, verbose=False)
+	t, avgvel2, maxvel2, KEavg2, avgvel3, maxvel3, KEavg3 = vel_ke(avgfile, verbose=False)
 
-	Calculates domain-averaged kinetic energy, mean and maximum velocity
-	for each time record of a ROMS *.avg or *.his file.
+	Calculates barotropic and baroclinic domain-averaged kinetic energies
+	and mean/maximum velocities for each time record of a ROMS *.avg or *.his file.
 	"""
 	nc = Dataset(avgfile)
 
 	try:
+		Ubar = nc.variables['ubar']
+		Vbar = nc.variables['vbar']
+		uvrho2 = False
+	except KeyError:
+		Ubar = nc.variables['ubar_eastward']
+		Vbar = nc.variables['vbar_northward']
+		uvrho2 = True
+
+	try:
 		U = nc.variables['u']
 		V = nc.variables['v']
-		uvrho = False
+		uvrho3 = False
 	except KeyError:
 		U = nc.variables['u_eastward']
 		V = nc.variables['v_northward']
-		uvrho = True
+		uvrho3 = True
 
-	nt = U.shape[0]
 	t = nc.variables['ocean_time'][:]
+	nt = t.size
 	t = t - t[0]
 
-	avgvel = np.array([])
-	maxvel = np.array([])
-	KEavg = np.array([])
+	avgvel2 = np.array([])
+	maxvel2 = np.array([])
+	avgvel3 = np.array([])
+	maxvel3 = np.array([])
+	KEavg2 = np.array([])
+	KEavg3 = np.array([])
 	for ti in xrange(nt):
 		tp = ti + 1
 		print "Processing time record %s of %s"%(tp,nt)
+		uubar = Ubar[ti,:]
+		vvbar = Vbar[ti,:]
 		uu = U[ti,:]
 		vv = V[ti,:]
 
-		if not uvrho:
+		if not uvrho2:
+			# Calculate ubar and vbar at PSI-points.
+			ubar = 0.5*(uubar[1:,:] + uubar[:-1,:])
+			vbar = 0.5*(vvbar[:,1:] + vvbar[:,:-1])
+		else:
+			# Ubar and Vbar both at RHO-points, no reshaping necessary.
+			ubar = uubar
+			vbar = vvbar
+			pass
+
+		if not uvrho3:
 			# Calculate u and v at PSI-points.
 			u = 0.5*(uu[:,1:,:] + uu[:,:-1,:])
 			v = 0.5*(vv[:,:,1:] + vv[:,:,:-1])
@@ -59,24 +83,35 @@ def vel_ke(avgfile, verbose=False):
 			v = vv
 			pass
 
-		# Maximum velocity and domain-averaged kinetic energy.
+		# Mean and maximum barotropic/baroclinic velocities and domain-averaged barotropic/baroclinic kinetic energy.
+		ubar2 = ubar.ravel()**2
+		vbar2 = vbar.ravel()**2
+		mag2 = np.sqrt(ubar2+vbar2)		
 		u2 = u.ravel()**2
 		v2 = v.ravel()**2
-		mag = np.sqrt(u2+v2)
-		magavg = mag.mean()
-		magmax = mag.max()
+		mag3 = np.sqrt(u2+v2)
+		magavg2 = mag2.mean()
+		magmax2 = mag2.max()
+		magavg3 = mag3.mean()
+		magmax3 = mag3.max()
 
-		ke = 0.5*(u2 + v2)
-		ke = ke.mean()
+		ke2 = 0.5*(ubar2 + vbar2)
+		ke2 = ke2.mean()
+		ke3 = 0.5*(u2 + v2)
+		ke3 = ke3.mean()
 
 		if verbose:
-			print "meanvel, maxvel, avgKE = %.2f m/s, %.2f m/s, %f m2/s2"%(magavg,magmax,ke)
+			print "meanvel2D, maxvel2D, avgKE2D = %.2f m/s, %.2f m/s, %f m2/s2"%(magavg2,magmax2,ke2)
+			print "meanvel3D, maxvel3D, avgKE3D = %.2f m/s, %.2f m/s, %f m2/s2"%(magavg3,magmax3,ke3)
 
-		KEavg = np.append(KEavg,ke)
-		avgvel = np.append(avgvel,magavg)
-		maxvel = np.append(maxvel,magmax)
+		avgvel2 = np.append(avgvel2,magavg2)
+		maxvel2 = np.append(maxvel2,magmax2)
+		KEavg2 = np.append(KEavg2,ke2)
+		avgvel3 = np.append(avgvel3,magavg3)
+		maxvel3 = np.append(maxvel3,magmax3)
+		KEavg3 = np.append(KEavg3,ke3)
 
-	return t, avgvel, maxvel, KEavg
+	return t, avgvel2, maxvel2, KEavg2, avgvel3, maxvel3, KEavg3
 
 def make_flat_ini(grdfile, setup_file, profile_z, profile_T, profile_S, return_all=False):
 	"""
