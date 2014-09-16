@@ -658,7 +658,7 @@ def mat2npz(matname):
 	np.savez(npzname,**d)
 	return None
 
-def bb_map(lons, lats, projection='merc', resolution='i', ax=plt.gca()):
+def bb_map(lons, lats, projection='merc', resolution='i', drawparallels=True, drawmeridians=True, ax=plt.gca()):
 	"""
 	USAGE
 	-----
@@ -687,8 +687,10 @@ def bb_map(lons, lats, projection='merc', resolution='i', ax=plt.gca()):
 	m.drawstates(zorder=10)
 	m.drawcountries(linewidth=2.0, zorder=10)
 	m.drawmapboundary(zorder=9999)
-	m.drawmeridians(np.arange(np.floor(lonmin), np.ceil(lonmax), 1), linewidth=0.15, labels=[1, 0, 1, 0], zorder=12)
-	m.drawparallels(np.arange(np.floor(latmin), np.ceil(latmax), 1), linewidth=0.15, labels=[1, 0, 0, 0], zorder=12)
+	if drawmeridians:
+		m.drawmeridians(np.arange(np.floor(lonmin), np.ceil(lonmax), 1), linewidth=0.15, labels=[1, 0, 1, 0], zorder=12)
+	if drawparallels:
+		m.drawparallels(np.arange(np.floor(latmin), np.ceil(latmax), 1), linewidth=0.15, labels=[1, 0, 0, 0], zorder=12)
 	plt.ion()
 	return m
 
