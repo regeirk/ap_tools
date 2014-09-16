@@ -658,7 +658,7 @@ def mat2npz(matname):
 	np.savez(npzname,**d)
 	return None
 
-def bb_map(lons, lats, projection='merc', resolution='i'):
+def bb_map(lons, lats, projection='merc', resolution='i', ax=plt.gca()):
 	"""
 	USAGE
 	-----
@@ -678,7 +678,8 @@ def bb_map(lons, lats, projection='merc', resolution='i'):
 				llcrnrlat=latmin,
 				urcrnrlat=latmax,
 				projection=projection,
-				resolution=resolution)
+				resolution=resolution,
+				ax=ax)
 
 	plt.ioff() # Avoid showing the figure.
 	m.fillcontinents(color='0.9', zorder=9)
