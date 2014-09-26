@@ -71,7 +71,6 @@ def vel_ke(avgfile, verbose=False):
 			# Ubar and Vbar both at RHO-points, no reshaping necessary.
 			ubar = uubar
 			vbar = vvbar
-			pass
 
 		if not uvrho3:
 			# Calculate u and v at PSI-points.
@@ -81,7 +80,6 @@ def vel_ke(avgfile, verbose=False):
 			# U and V both at RHO-points, no reshaping necessary.
 			u = uu
 			v = vv
-			pass
 
 		# Mean and maximum barotropic/baroclinic velocities and domain-averaged barotropic/baroclinic kinetic energy.
 		ubar2 = ubar.ravel()**2
