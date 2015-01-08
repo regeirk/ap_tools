@@ -10,8 +10,11 @@ __all__ = ['ekman','dynmodes']
 import numpy as np
 import matplotlib.pyplot as plt
 from numpy.linalg import eig
-from romslab import near
-from oceans.plotting import rstyle
+from romslab.romslab import near
+try:
+	from oceans.plotting import rstyle
+except:
+	pass
 
 plt.rcParams['text.usetex'] = True
 plt.rcParams['text.latex.unicode'] = True
