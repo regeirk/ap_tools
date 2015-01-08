@@ -8,12 +8,16 @@
 # E-mail:      paloczy@gmail.com
 
 __all__ = ['vel_ke',
+           'ape',
            'make_flat_ini']
 
 import numpy as np
 from scipy.interpolate import interp1d
-from romslab import RomsGrid, RunSetup
+from seawater.csiro import pres, pden, grav
+# from gsw import SA_from_SP, CT_from_pt, rho, grav
+from romslab.romslab import RomsGrid, RunSetup
 from netCDF4 import Dataset
+import pyroms
 from pyroms.vgrid import s_coordinate, s_coordinate_2, s_coordinate_4
 
 def vel_ke(avgfile, verbose=False):
@@ -46,8 +50,8 @@ def vel_ke(avgfile, verbose=False):
 		uvrho3 = True
 
 	t = nc.variables['ocean_time'][:]
-	nt = t.size
 	t = t - t[0]
+	nt = t.size
 
 	avgvel2 = np.array([])
 	maxvel2 = np.array([])
@@ -110,6 +114,168 @@ def vel_ke(avgfile, verbose=False):
 		KEavg3 = np.append(KEavg3,ke3)
 
 	return t, avgvel2, maxvel2, KEavg2, avgvel3, maxvel3, KEavg3
+
+def ape(avgfile, grdfile, gridid=None, maskfile='/media/Armadillo/bkp/lado/MSc/work/ROMS/plot_outputs3/msk_shelf.npy', normalize=False, verbose=True):
+	"""
+	USAGE
+	-----
+	t, ape = ape(avgfile, grdfile, gridid=None, maskfile='/media/Armadillo/bkp/lado/MSc/work/ROMS/plot_outputs3/msk_shelf.npy', normalize=False, verbose=True):
+
+	Calculates Available Potential Energy (APE) change integrated within a control volume
+	for each time record of a ROMS *.avg or *.his file. The change is computed relative to
+	the initial conditions, i.e., rhop(x,y,z,t=ti) = rho(x,y,z,t=ti) - rho(x,y,z,t=t0).
+
+	                                       [-g*(rhop^2)]
+	APE = Integrated in a control volume V [-----------]     # [J]
+										   [ 2*drhodz  ]
+
+	If 'normalize' is set to 'True', then APE/V (mean APE density [J/m3]) is returned instead.
+
+	Reference:
+	----------
+	Cushman-Roisin (1994): Introduction to Geophysical Fluid Dynamics, page 213,
+	Combination of Equations 15-29 and 15-30.
+	"""
+	print "Loading outputs and grid."
+
+	## Get outputs.
+	avg = Dataset(avgfile)
+
+	## Load domain mask.
+	if maskfile:
+		mask = np.load(maskfile)
+		if type(mask[0,0])==np.bool_:
+			pass
+		else:
+			mask=mask==1.
+
+	## Getting mask indices.
+	ilon,ilat = np.where(mask)
+
+	## Get grid, time-dependent free-surface and topography.
+	zeta = avg.variables['zeta']
+	grd = pyroms.grid.get_ROMS_grid(gridid, zeta=zeta, hist_file=avgfile, grid_file=grdfile)
+	print '1'
+
+	## Get time.
+	t = avg.variables['ocean_time'][:]
+	t = t - t[0]
+	nt = t.size
+	print '2'
+
+	## Get grid coordinates at RHO-points.
+	lonr, latr = avg.variables['lon_rho'][:], avg.variables['lat_rho'][:]
+
+	## Get grid spacings at RHO-points.
+	## Find cell widths.
+	dx = grd.hgrid.dx             # Cell width in the XI-direction.
+	dy = grd.hgrid.dy             # Cell width in the ETA-direction.
+	if maskfile:
+		dA = dx[mask]*dy[mask]
+	else:
+		dA = dx*dy
+	print '3'
+
+	## Get temp, salt.
+	temp = avg.variables['temp']
+	salt = avg.variables['salt']
+	print '4'
+
+	## Find cell heights (at ti=0).
+	zw = grd.vgrid.z_w[0,:]             # Cell depths (at ti=0).
+	if maskfile:
+		dz = zw[1:,ilat,ilon] - zw[:-1,ilat,ilon] # Cell height.
+		# dz = zw[1:,mask] - zw[:-1,mask] # Cell height.
+	else:
+		dz = zw[1:,:] - zw[:-1,:]
+	dz = 0.5*(dz[1:,:] + dz[:-1,:])     # Cell heights at W-points.
+	print '5'
+
+	## Get pres, g and pden (at ti=0).
+	# p0 = pres(-zw, latr)
+	p0 = -zw # Approximation, for computational efficiency.
+	p0 = 0.5*(p0[1:,:]+p0[:-1,:])
+
+	if maskfile:
+		rho0 = pden(salt[0,:,ilat,ilon],temp[0,:,ilat,ilon],p0[:,ilat,ilon],pr=0.)
+		# rho0 = pden(salt[0,:,mask],temp[0,:,mask],p0[:,mask],pr=0.)
+	else:
+		rho0 = pden(salt[0,:],temp[0,:],p0,pr=0.)
+
+	# SA = SA_from_SP(salt[0,:], p0, lonr, latr)
+	# CT = CT_from_pt(SA, temp[0,:])
+	# rho0 = rho(SA,CT,0.)
+
+	drho0 = rho0[1:,:] - rho0[:-1,:]
+	print drho0.shape,dz.shape
+	print rho0.shape
+
+	if maskfile:
+		g = grav(latr[mask])
+	else:
+		g = grav(latr)
+	print '6'
+
+	rho0z = drho0/dz # Background potential density vertical gradient.
+	print '7'
+
+	APE = np.array([])
+	for ti in xrange(nt):
+		tp = ti + 1
+		print "Processing time record %s of %s"%(tp,nt)
+
+		if maskfile:
+			rhoi = pden(salt[ti,:,ilat,ilon],temp[ti,:,ilat,ilon],p0[:,ilat,ilon],pr=0.)
+			# rhoi = pden(salt[ti,:,mask],temp[ti,:,mask],p0[:,mask],pr=0.)
+		else:
+			rhoi = pden(salt[ti,:],temp[ti,:],p0,pr=0.)
+
+		rhop = rhoi - rho0                                  # Density anomaly, i.e., rho(x,y,z,t=ti) - rho(x,y,z,t=0)
+		rhop = 0.5*(rhop[1:,:] + rhop[:-1,:])
+		print 'a'
+
+		## Find cell heights.
+		zw = grd.vgrid.z_w[ti,:]                      # Cell depths (at ti=0).
+		if maskfile:
+			dz = zw[1:,ilat,ilon] - zw[:-1,ilat,ilon] # Cell height.
+			# dz = zw[1:,mask] - zw[:-1,mask]         # Cell height.
+		else:
+			dz = zw[1:,:] - zw[:-1,:]
+		print 'b'
+
+		## Find cell volumes.
+		print dx.shape,dy.shape,dz.shape
+		dV = dA*dz # [m3]
+		dV = 0.5*(dV[1:,:]+dV[:-1,:])
+		print 'c'
+
+		## Gravitational Available Potential Energy density (energy/volume).
+		print g.shape
+		print rhop.shape
+		print rho0z.shape
+		ape = -g*(rhop**2)/(2*rho0z) # [J/m3]
+		print ape.shape
+		# stop
+		print 'd'
+
+		## Do volume integral to calculate Gravitational Available Potential Energy of the control volume.
+		Ape = np.sum(ape*dV) # [J]
+		print 'e'
+
+		np.append(APE, Ape)
+
+		if verbose:
+			print "APE = %e J"%Ape
+
+	if normalize:
+		V = dV.sum()
+		APE = APE/V
+		print ""
+		print "Total volume of the control volume is %e m3."
+		print "Normalizing APE by this volume, i.e., mean APE density [J/m3]."
+		print ""
+
+	return t, APE
 
 def make_flat_ini(grdfile, setup_file, profile_z, profile_T, profile_S, return_all=False):
 	"""
