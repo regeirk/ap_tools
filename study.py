@@ -10,7 +10,13 @@ __all__ = ['ekman','dynmodes']
 import numpy as np
 import matplotlib.pyplot as plt
 from numpy.linalg import eig
-from romslab.romslab import near
+try:
+	from romslab import near
+except:
+	try:
+		from romslab.romslab import near
+	except:
+		pass
 try:
 	from oceans.plotting import rstyle
 except:
