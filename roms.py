@@ -125,9 +125,9 @@ def ape(avgfile, grdfile, gridid=None, maskfile='/media/Armadillo/bkp/lado/MSc/w
 	for each time record of a ROMS *.avg or *.his file. The change is computed relative to
 	the initial conditions, i.e., rhop(x,y,z,t=ti) = rho(x,y,z,t=ti) - rho(x,y,z,t=t0).
 
-	                                       [-g*(rhop^2)]
+                                           [-g*(rhop^2)]
 	APE = Integrated in a control volume V [-----------]     # [J]
-										   [ 2*drhodz  ]
+                                           [ 2*drhodz  ]
 
 	If 'normalize' is set to 'True', then APE/V (mean APE density [J/m3]) is returned instead.
 
@@ -155,13 +155,11 @@ def ape(avgfile, grdfile, gridid=None, maskfile='/media/Armadillo/bkp/lado/MSc/w
 	## Get grid, time-dependent free-surface and topography.
 	zeta = avg.variables['zeta']
 	grd = pyroms.grid.get_ROMS_grid(gridid, zeta=zeta, hist_file=avgfile, grid_file=grdfile)
-	print '1'
 
 	## Get time.
 	t = avg.variables['ocean_time'][:]
 	t = t - t[0]
 	nt = t.size
-	print '2'
 
 	## Get grid coordinates at RHO-points.
 	lonr, latr = avg.variables['lon_rho'][:], avg.variables['lat_rho'][:]
@@ -174,50 +172,35 @@ def ape(avgfile, grdfile, gridid=None, maskfile='/media/Armadillo/bkp/lado/MSc/w
 		dA = dx[mask]*dy[mask]
 	else:
 		dA = dx*dy
-	print '3'
 
 	## Get temp, salt.
 	temp = avg.variables['temp']
 	salt = avg.variables['salt']
-	print '4'
 
 	## Find cell heights (at ti=0).
 	zw = grd.vgrid.z_w[0,:]             # Cell depths (at ti=0).
 	if maskfile:
 		dz = zw[1:,ilat,ilon] - zw[:-1,ilat,ilon] # Cell height.
-		# dz = zw[1:,mask] - zw[:-1,mask] # Cell height.
 	else:
 		dz = zw[1:,:] - zw[:-1,:]
-	dz = 0.5*(dz[1:,:] + dz[:-1,:])     # Cell heights at W-points.
-	print '5'
+	dz = 0.5*(dz[1:,:] + dz[:-1,:])               # Cell heights at W-points.
 
 	## Get pres, g and pden (at ti=0).
-	# p0 = pres(-zw, latr)
 	p0 = -zw # Approximation, for computational efficiency.
 	p0 = 0.5*(p0[1:,:]+p0[:-1,:])
 
 	if maskfile:
 		rho0 = pden(salt[0,:,ilat,ilon],temp[0,:,ilat,ilon],p0[:,ilat,ilon],pr=0.)
-		# rho0 = pden(salt[0,:,mask],temp[0,:,mask],p0[:,mask],pr=0.)
 	else:
 		rho0 = pden(salt[0,:],temp[0,:],p0,pr=0.)
-
-	# SA = SA_from_SP(salt[0,:], p0, lonr, latr)
-	# CT = CT_from_pt(SA, temp[0,:])
-	# rho0 = rho(SA,CT,0.)
-
-	drho0 = rho0[1:,:] - rho0[:-1,:]
-	print drho0.shape,dz.shape
-	print rho0.shape
 
 	if maskfile:
 		g = grav(latr[mask])
 	else:
 		g = grav(latr)
-	print '6'
 
+	drho0 = rho0[1:,:] - rho0[:-1,:]
 	rho0z = drho0/dz # Background potential density vertical gradient.
-	print '7'
 
 	APE = np.array([])
 	for ti in xrange(nt):
@@ -226,54 +209,48 @@ def ape(avgfile, grdfile, gridid=None, maskfile='/media/Armadillo/bkp/lado/MSc/w
 
 		if maskfile:
 			rhoi = pden(salt[ti,:,ilat,ilon],temp[ti,:,ilat,ilon],p0[:,ilat,ilon],pr=0.)
-			# rhoi = pden(salt[ti,:,mask],temp[ti,:,mask],p0[:,mask],pr=0.)
 		else:
 			rhoi = pden(salt[ti,:],temp[ti,:],p0,pr=0.)
 
 		rhop = rhoi - rho0                                  # Density anomaly, i.e., rho(x,y,z,t=ti) - rho(x,y,z,t=0)
 		rhop = 0.5*(rhop[1:,:] + rhop[:-1,:])
-		print 'a'
 
 		## Find cell heights.
 		zw = grd.vgrid.z_w[ti,:]                      # Cell depths (at ti=0).
 		if maskfile:
 			dz = zw[1:,ilat,ilon] - zw[:-1,ilat,ilon] # Cell height.
-			# dz = zw[1:,mask] - zw[:-1,mask]         # Cell height.
 		else:
 			dz = zw[1:,:] - zw[:-1,:]
-		print 'b'
 
 		## Find cell volumes.
 		print dx.shape,dy.shape,dz.shape
 		dV = dA*dz # [m3]
 		dV = 0.5*(dV[1:,:]+dV[:-1,:])
-		print 'c'
 
 		## Gravitational Available Potential Energy density (energy/volume).
 		print g.shape
 		print rhop.shape
 		print rho0z.shape
 		ape = -g*(rhop**2)/(2*rho0z) # [J/m3]
-		print ape.shape
-		# stop
-		print 'd'
 
 		## Do volume integral to calculate Gravitational Available Potential Energy of the control volume.
 		Ape = np.sum(ape*dV) # [J]
-		print 'e'
 
-		np.append(APE, Ape)
+		if normalize:
+			V = dV.sum()
+			Ape = Ape/V
+			print ""
+			print "Total volume of the control volume is %e m3."%V
+			print "Normalizing APE by this volume, i.e., mean APE density [J/m3]."
+			print ""
 
 		if verbose:
-			print "APE = %e J"%Ape
+			if normalize:
+				print "APE = %e J/m3"%Ape
+			else:
+				print "APE = %e J"%Ape
 
-	if normalize:
-		V = dV.sum()
-		APE = APE/V
-		print ""
-		print "Total volume of the control volume is %e m3."
-		print "Normalizing APE by this volume, i.e., mean APE density [J/m3]."
-		print ""
+		APE = np.append(APE, Ape)
 
 	return t, APE
 
