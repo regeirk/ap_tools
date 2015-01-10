@@ -8,7 +8,7 @@
 # E-mail:      paloczy@gmail.com
 
 __all__ = ['vel_ke',
-           'ape',
+           'pe',
            'make_flat_ini']
 
 import numpy as np
