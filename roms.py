@@ -13,9 +13,23 @@ __all__ = ['vel_ke',
 
 import numpy as np
 from scipy.interpolate import interp1d
-from seawater.csiro import pres, pden, grav
+try:
+	from seawater import pres, pden, grav
+except:
+	try:
+		from seawater.csiro import pres, pden, grav
+	except:
+		pass		
 # from gsw import SA_from_SP, CT_from_pt, rho, grav
-from romslab.romslab import RomsGrid, RunSetup
+
+try:
+	from romslab import RomsGrid, RunSetup
+except:
+	try:
+		from romslab.romslab import RomsGrid, RunSetup
+	except:
+		pass
+
 from netCDF4 import Dataset
 import pyroms
 from pyroms.vgrid import s_coordinate, s_coordinate_2, s_coordinate_4
@@ -115,21 +129,21 @@ def vel_ke(avgfile, verbose=False):
 
 	return t, avgvel2, maxvel2, KEavg2, avgvel3, maxvel3, KEavg3
 
-def ape(avgfile, grdfile, gridid=None, maskfile='/media/Armadillo/bkp/lado/MSc/work/ROMS/plot_outputs3/msk_shelf.npy', normalize=False, verbose=True):
+def pe(avgfile, grdfile, gridid=None, maskfile='/media/Armadillo/bkp/lado/MSc/work/ROMS/plot_outputs3/msk_shelf.npy', normalize=False, verbose=True):
 	"""
 	USAGE
 	-----
-	t, ape = ape(avgfile, grdfile, gridid=None, maskfile='/media/Armadillo/bkp/lado/MSc/work/ROMS/plot_outputs3/msk_shelf.npy', normalize=False, verbose=True):
+	t, pe = pe(avgfile, grdfile, gridid=None, maskfile='/media/Armadillo/bkp/lado/MSc/work/ROMS/plot_outputs3/msk_shelf.npy', normalize=False, verbose=True):
 
-	Calculates Available Potential Energy (APE) change integrated within a control volume
+	Calculates Potential Energy (PE) change integrated within a control volume
 	for each time record of a ROMS *.avg or *.his file. The change is computed relative to
 	the initial conditions, i.e., rhop(x,y,z,t=ti) = rho(x,y,z,t=ti) - rho(x,y,z,t=t0).
 
-                                           [-g*(rhop^2)]
-	APE = Integrated in a control volume V [-----------]     # [J]
-                                           [ 2*drhodz  ]
+                                          [-g*(rhop^2)]
+	PE = Integrated in a control volume V [-----------]     # [J]
+                                          [ 2*drhodz  ]
 
-	If 'normalize' is set to 'True', then APE/V (mean APE density [J/m3]) is returned instead.
+	If 'normalize' is set to 'True', then PE/V (mean PE density [J/m3]) is returned instead.
 
 	Reference:
 	----------
@@ -202,7 +216,7 @@ def ape(avgfile, grdfile, gridid=None, maskfile='/media/Armadillo/bkp/lado/MSc/w
 	drho0 = rho0[1:,:] - rho0[:-1,:]
 	rho0z = drho0/dz # Background potential density vertical gradient.
 
-	APE = np.array([])
+	PE = np.array([])
 	for ti in xrange(nt):
 		tp = ti + 1
 		print "Processing time record %s of %s"%(tp,nt)
@@ -231,28 +245,28 @@ def ape(avgfile, grdfile, gridid=None, maskfile='/media/Armadillo/bkp/lado/MSc/w
 		print g.shape
 		print rhop.shape
 		print rho0z.shape
-		ape = -g*(rhop**2)/(2*rho0z) # [J/m3]
+		pe = -g*(rhop**2)/(2*rho0z) # [J/m3]
 
 		## Do volume integral to calculate Gravitational Available Potential Energy of the control volume.
-		Ape = np.sum(ape*dV) # [J]
+		Pe = np.sum(pe*dV) # [J]
 
 		if normalize:
 			V = dV.sum()
-			Ape = Ape/V
+			Pe = Pe/V
 			print ""
 			print "Total volume of the control volume is %e m3."%V
-			print "Normalizing APE by this volume, i.e., mean APE density [J/m3]."
+			print "Normalizing PE by this volume, i.e., mean PE density [J/m3]."
 			print ""
 
 		if verbose:
 			if normalize:
-				print "APE = %e J/m3"%Ape
+				print "PE = %e J/m3"%Pe
 			else:
-				print "APE = %e J"%Ape
+				print "PE = %e J"%Pe
 
-		APE = np.append(APE, Ape)
+		PE = np.append(PE, Pe)
 
-	return t, APE
+	return t, PE
 
 def make_flat_ini(grdfile, setup_file, profile_z, profile_T, profile_S, return_all=False):
 	"""
