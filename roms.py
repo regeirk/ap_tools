@@ -7,7 +7,7 @@
 # Author:      André Palóczy Filho
 # E-mail:      paloczy@gmail.com
 
-__all__ = ['energy_diagnosis',
+__all__ = ['energy_diagnostics',
 		   'vel_ke',
            'pe',
            'make_flat_ini']
@@ -35,9 +35,9 @@ from netCDF4 import Dataset
 import pyroms
 from pyroms.vgrid import s_coordinate, s_coordinate_2, s_coordinate_4
 
-def energy_diagnosis(avgfile, grdfile, rho0=1025., gridid=None, maskfile='msk_shelf.npy', normalize=True, verbose=True):
+def energy_diagnostics(avgfile, grdfile, rho0=1025., gridid=None, maskfile='msk_shelf.npy', normalize=True, verbose=True):
 	"""
-	doscstring.
+	t, KE, PE = energy_diagnostics(avgfile, grdfile, rho0=1025., gridid=None, maskfile='msk_shelf.npy', normalize=True, verbose=True)
 	"""
 	avg = Dataset(avgfile)
 
@@ -53,15 +53,7 @@ def energy_diagnosis(avgfile, grdfile, rho0=1025., gridid=None, maskfile='msk_sh
 	## Getting mask indices.
 	ilon,ilat = np.where(mask)
 
-	try:
-		Ubar = avg.variables['ubar']
-		Vbar = avg.variables['vbar']
-		uvrho2 = False
-	except KeyError:
-		Ubar = avg.variables['ubar_eastward']
-		Vbar = avg.variables['vbar_northward']
-		uvrho2 = True
-
+	## Getting velocity field.
 	try:
 		U = avg.variables['u']
 		V = avg.variables['v']
@@ -71,14 +63,128 @@ def energy_diagnosis(avgfile, grdfile, rho0=1025., gridid=None, maskfile='msk_sh
 		V = avg.variables['v_northward']
 		uvrho3 = True
 
+	## Get temp, salt.
+	temp = avg.variables['temp']
+	salt = avg.variables['salt']
+
 	## Get grid, time-dependent free-surface and topography.
 	zeta = avg.variables['zeta']
 	grd = pyroms.grid.get_ROMS_grid(gridid, zeta=zeta, hist_file=avgfile, grid_file=grdfile)
+
+	## Find cell widths at RHO-points.
+	dx = grd.hgrid.dx             # Cell width in the XI-direction.
+	dy = grd.hgrid.dy             # Cell width in the ETA-direction.
+	if maskfile:
+		dA = dx[mask]*dy[mask]
+	else:
+		dA = dx*dy
+
+	## Get pres, g and pden (at ti=0).
+	p0 = -grd.vgrid.z_r[0,:] # Approximation, for computational efficiency.
+
+	if maskfile:
+		g = grav(avg.variables['lat_rho'][:][mask])
+	else:
+		g = grav(avg.variables['lat_rho'][:])
 
 	## Get time.
 	t = avg.variables['ocean_time'][:]
 	t = t - t[0]
 	nt = t.size
+
+	KE = np.array([])
+	PE = np.array([])
+	for ti in xrange(nt):
+		tp = ti + 1
+		print ""
+		print "Processing time record %s of %s"%(tp,nt)
+
+		print "Calculating density."
+		if maskfile:
+			rho = pden(salt[ti,:,ilat,ilon],temp[ti,:,ilat,ilon],p0[:,ilat,ilon],pr=0.)
+		else:
+			rho = pden(salt[ti,:],temp[ti,:],p0,pr=0.)
+
+		print "Loading velocities."
+		uu = U[ti,:]
+		vv = V[ti,:]
+
+		if not uvrho3:
+			# Calculate u and v at PSI-points.
+			u = 0.5*(uu[:,1:,:] + uu[:,:-1,:])
+			v = 0.5*(vv[:,:,1:] + vv[:,:,:-1])
+			# Calculate rho at PSI-points.
+			rhop = 0.5*(rho[:,1:,:] + rho[:,:-1,:])
+			rhop = 0.5*(rhop[:,:,1:] + rhop[:,:,:-1])
+			if maskfile:
+				u = u[:,ilat+1,ilon+1]
+				v = v[:,ilat+1,ilon+1]
+				rhop = rhop[:,ilat+1,ilon+1]
+			else:
+				pass
+		else:
+			# U and V both at RHO-points, no reshaping necessary.
+			if maskfile:
+				u = uu[:,ilat,ilon]
+				v = vv[:,ilat,ilon]
+			else:
+				u = uu
+				v = vv
+
+		## Find cell depths, invert z-axis direction (downward).
+		if maskfile:
+			z = -grd.vgrid.z_r[ti,:,ilat,ilon]
+		else:
+			z = -grd.vgrid.z_r[ti,:]
+
+		## Find cell heights.
+		zw = grd.vgrid.z_w[ti,:]
+		if maskfile:
+			dz = zw[1:,ilat,ilon] - zw[:-1,ilat,ilon] # Cell height.
+		else:
+			dz = zw[1:,:] - zw[:-1,:]
+
+		## Find cell volumes.
+		dV = dA*dz # [m3]
+
+		print "Squaring velocities."
+		u2v2 = u*u + v*v
+
+		## Total Potential Energy (TPE) density relative to z=0 (energy/volume).
+		pe = rho*g*z           # [J/m3]
+
+		## Horizontal Kinetic Energy (HKE) density (energy/volume).
+		if not uvrho3:
+			ke = 0.5*rhop*u2v2 # [J/m3]
+		else:
+			ke = 0.5*rho*u2v2  # [J/m3]
+
+		## Do volume integral to calculate TPE/HKE of the control volume.
+		Pe = np.sum(pe*dV) # [J]
+		Ke = np.sum(ke*dV) # [J]
+
+		if normalize:
+			Vol = dV.sum()
+			Pe = Pe/Vol
+			Ke = Ke/Vol
+			if verbose and tp==1:
+				print ""
+				print "Total volume of the control volume is %e m3."%Vol
+				print "Normalizing TPE/HKE by this volume, i.e., mean TPE/HKE density [J/m3]."
+				print ""
+
+		if verbose:
+			print ""
+			if normalize:
+				print "TPE/vol = %e J/m3"%Pe
+				print "HKE/vol = %e J/m3"%Ke
+			else:
+				print "TPE = %e J"%Pe
+				print "HKE = %e J"%Ke
+
+		PE = np.append(PE, Pe)
+		KE = np.append(KE, Ke)
+
 	return t, KE, PE
 
 def vel_ke(avgfile, grdfile, rho0=1025., gridid=None, maskfile='msk_shelf.npy', normalize=True, verbose=True):
