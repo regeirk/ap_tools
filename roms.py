@@ -7,7 +7,8 @@
 # Author:      André Palóczy Filho
 # E-mail:      paloczy@gmail.com
 
-__all__ = ['vel_ke',
+__all__ = ['energy_diagnosis',
+		   'vel_ke',
            'pe',
            'make_flat_ini']
 
@@ -34,38 +35,127 @@ from netCDF4 import Dataset
 import pyroms
 from pyroms.vgrid import s_coordinate, s_coordinate_2, s_coordinate_4
 
-def vel_ke(avgfile, verbose=False):
+def energy_diagnosis(avgfile, grdfile, rho0=1025., gridid=None, maskfile='msk_shelf.npy', normalize=True, verbose=True):
 	"""
-	USAGE
-	-----
-	t, avgvel2, maxvel2, KEavg2, avgvel3, maxvel3, KEavg3 = vel_ke(avgfile, verbose=False)
+	doscstring.
+	"""
+	avg = Dataset(avgfile)
 
-	Calculates barotropic and baroclinic domain-averaged kinetic energies
-	and mean/maximum velocities for each time record of a ROMS *.avg or *.his file.
-	"""
-	nc = Dataset(avgfile)
+	print "Loading outputs and grid."
+	## Load domain mask.
+	if maskfile:
+		mask = np.load(maskfile)
+		if type(mask[0,0])==np.bool_:
+			pass
+		else:
+			mask=mask==1.
+
+	## Getting mask indices.
+	ilon,ilat = np.where(mask)
 
 	try:
-		Ubar = nc.variables['ubar']
-		Vbar = nc.variables['vbar']
+		Ubar = avg.variables['ubar']
+		Vbar = avg.variables['vbar']
 		uvrho2 = False
 	except KeyError:
-		Ubar = nc.variables['ubar_eastward']
-		Vbar = nc.variables['vbar_northward']
+		Ubar = avg.variables['ubar_eastward']
+		Vbar = avg.variables['vbar_northward']
 		uvrho2 = True
 
 	try:
-		U = nc.variables['u']
-		V = nc.variables['v']
+		U = avg.variables['u']
+		V = avg.variables['v']
 		uvrho3 = False
 	except KeyError:
-		U = nc.variables['u_eastward']
-		V = nc.variables['v_northward']
+		U = avg.variables['u_eastward']
+		V = avg.variables['v_northward']
 		uvrho3 = True
 
-	t = nc.variables['ocean_time'][:]
+	## Get grid, time-dependent free-surface and topography.
+	zeta = avg.variables['zeta']
+	grd = pyroms.grid.get_ROMS_grid(gridid, zeta=zeta, hist_file=avgfile, grid_file=grdfile)
+
+	## Get time.
+	t = avg.variables['ocean_time'][:]
 	t = t - t[0]
 	nt = t.size
+	return t, KE, PE
+
+def vel_ke(avgfile, grdfile, rho0=1025., gridid=None, maskfile='msk_shelf.npy', normalize=True, verbose=True):
+	"""
+	USAGE
+	-----
+	t, avgvel2, maxvel2, KEavg2, avgvel3, maxvel3, KEavg3 = ...
+	vel_ke(avgfile, grdfile, rho0=1025., gridid=None,...
+	maskfile='/media/Armadillo/bkp/lado/MSc/work/ROMS/plot_outputs3/msk_shelf.npy', normalize=True, verbose=True)
+
+	Calculates barotropic and baroclinic kinetic energies
+	and mean/maximum velocities for each time record of a ROMS *.avg or *.his file.
+	"""
+	avg = Dataset(avgfile)
+
+	print "Loading outputs and grid."
+	## Load domain mask.
+	if maskfile:
+		mask = np.load(maskfile)
+		if type(mask[0,0])==np.bool_:
+			pass
+		else:
+			mask=mask==1.
+
+	## Getting mask indices.
+	ilon,ilat = np.where(mask)
+
+	try:
+		Ubar = avg.variables['ubar']
+		Vbar = avg.variables['vbar']
+		uvrho2 = False
+	except KeyError:
+		Ubar = avg.variables['ubar_eastward']
+		Vbar = avg.variables['vbar_northward']
+		uvrho2 = True
+
+	try:
+		U = avg.variables['u']
+		V = avg.variables['v']
+		uvrho3 = False
+	except KeyError:
+		U = avg.variables['u_eastward']
+		V = avg.variables['v_northward']
+		uvrho3 = True
+
+	## Get grid, time-dependent free-surface and topography.
+	zeta = avg.variables['zeta']
+	grd = pyroms.grid.get_ROMS_grid(gridid, zeta=zeta, hist_file=avgfile, grid_file=grdfile)
+
+	## Get time.
+	t = avg.variables['ocean_time'][:]
+	t = t - t[0]
+	nt = t.size
+
+	## Get grid coordinates at RHO-points.
+	lonr, latr = avg.variables['lon_rho'][:], avg.variables['lat_rho'][:]
+
+	## Get grid spacings at RHO-points.
+	## Find cell widths.
+	dx = grd.hgrid.dx             # Cell width in the XI-direction.
+	dy = grd.hgrid.dy             # Cell width in the ETA-direction.
+	if maskfile:
+		dA = dx[mask]*dy[mask]
+	else:
+		dA = dx*dy
+
+	## Find cell heights (at ti=0).
+	zw = grd.vgrid.z_w[0,:]             # Cell depths (at ti=0).
+	if maskfile:
+		dz = zw[1:,ilat,ilon] - zw[:-1,ilat,ilon] # Cell height.
+	else:
+		dz = zw[1:,:] - zw[:-1,:]
+	dz = 0.5*(dz[1:,:] + dz[:-1,:])               # Cell heights at W-points.
+
+	## Get pres, g and pden (at ti=0).
+	p0 = -zw # Approximation, for computational efficiency.
+	p0 = 0.5*(p0[1:,:]+p0[:-1,:])
 
 	avgvel2 = np.array([])
 	maxvel2 = np.array([])
@@ -85,19 +175,48 @@ def vel_ke(avgfile, verbose=False):
 			# Calculate ubar and vbar at PSI-points.
 			ubar = 0.5*(uubar[1:,:] + uubar[:-1,:])
 			vbar = 0.5*(vvbar[:,1:] + vvbar[:,:-1])
+			if maskfile:
+				ubar = ubar[ilat+1,ilon+1]
+				vbar = vbar[ilat+1,ilon+1]
+			else:
+				pass
 		else:
 			# Ubar and Vbar both at RHO-points, no reshaping necessary.
-			ubar = uubar
-			vbar = vvbar
+			if maskfile:
+				ubar = uubar[ilat,ilon]
+				vbar = vvbar[ilat,ilon]
+			else:
+				ubar = uubar
+				vbar = vvbar
 
 		if not uvrho3:
 			# Calculate u and v at PSI-points.
 			u = 0.5*(uu[:,1:,:] + uu[:,:-1,:])
 			v = 0.5*(vv[:,:,1:] + vv[:,:,:-1])
+			if maskfile:
+				u = u[:,ilat+1,ilon+1]
+				v = v[:,ilat+1,ilon+1]
+			else:
+				pass
 		else:
 			# U and V both at RHO-points, no reshaping necessary.
-			u = uu
-			v = vv
+			if maskfile:
+				u = uu[:,ilat,ilon]
+				v = vv[:,ilat,ilon]
+			else:
+				u = uu
+				v = vv
+
+		## Find cell heights.
+		zw = grd.vgrid.z_w[ti,:]                      # Cell depths.
+		if maskfile:
+			dz = zw[1:,ilat,ilon] - zw[:-1,ilat,ilon] # Cell height.
+		else:
+			dz = zw[1:,:] - zw[:-1,:]
+
+		## Find cell volumes.
+		dV = dA*dz # [m3]
+		dV = 0.5*(dV[1:,:]+dV[:-1,:])
 
 		# Mean and maximum barotropic/baroclinic velocities and domain-averaged barotropic/baroclinic kinetic energy.
 		ubar2 = ubar.ravel()**2
@@ -111,21 +230,39 @@ def vel_ke(avgfile, verbose=False):
 		magavg3 = mag3.mean()
 		magmax3 = mag3.max()
 
-		ke2 = 0.5*(ubar2 + vbar2)
-		ke2 = ke2.mean()
-		ke3 = 0.5*(u2 + v2)
-		ke3 = ke3.mean()
+		ke2 = 0.5*rho0*(ubar2 + vbar2)
+		ke3 = 0.5*rho0*(u2 + v2)
+
+		dV2 = dV.sum(axis=0).ravel()
+		dV3 = dV.ravel()
+
+		## Do volume integral to calculate total Horizontal Kinetic Energy of the control volume.
+		Ke2 = np.sum(ke2*dV2) # [J]
+		Ke3 = np.sum(ke3*dV3) # [J]
+
+		if normalize:
+			V = dV.sum()
+			Ke2 = Ke2/V
+			Ke3 = Ke3/V
+			print ""
+			print "Total volume of the control volume is %e m3."%V
+			print "Normalizing volume-integrated KE by this volume, i.e., mean KE density [J/m3]."
+			print ""
 
 		if verbose:
-			print "meanvel2D, maxvel2D, avgKE2D = %.2f m/s, %.2f m/s, %f m2/s2"%(magavg2,magmax2,ke2)
-			print "meanvel3D, maxvel3D, avgKE3D = %.2f m/s, %.2f m/s, %f m2/s2"%(magavg3,magmax3,ke3)
+			if normalize:
+				print "meanvel2D, maxvel2D, avgKE2D = %.2f m/s, %.2f m/s, %f J/m3"%(magavg2,magmax2,Ke2)
+				print "meanvel3D, maxvel3D, avgKE3D = %.2f m/s, %.2f m/s, %f J/m3"%(magavg3,magmax3,Ke3)
+			else:
+				print "meanvel2D, maxvel2D, KE2D = %.2f m/s, %.2f m/s, %f J"%(magavg2,magmax2,Ke2)
+				print "meanvel3D, maxvel3D, KE3D = %.2f m/s, %.2f m/s, %f J"%(magavg3,magmax3,Ke3)
 
 		avgvel2 = np.append(avgvel2,magavg2)
 		maxvel2 = np.append(maxvel2,magmax2)
-		KEavg2 = np.append(KEavg2,ke2)
+		KEavg2 = np.append(KEavg2,Ke2)
 		avgvel3 = np.append(avgvel3,magavg3)
 		maxvel3 = np.append(maxvel3,magmax3)
-		KEavg3 = np.append(KEavg3,ke3)
+		KEavg3 = np.append(KEavg3,Ke3)
 
 	return t, avgvel2, maxvel2, KEavg2, avgvel3, maxvel3, KEavg3
 
@@ -134,17 +271,13 @@ def pe(avgfile, grdfile, gridid=None, maskfile='/media/Armadillo/bkp/lado/MSc/wo
 	USAGE
 	-----
 	t, pe = pe(avgfile, grdfile, gridid=None, maskfile='/media/Armadillo/bkp/lado/MSc/work/ROMS/plot_outputs3/msk_shelf.npy', normalize=False, verbose=True):
-
 	Calculates Potential Energy (PE) change integrated within a control volume
 	for each time record of a ROMS *.avg or *.his file. The change is computed relative to
 	the initial conditions, i.e., rhop(x,y,z,t=ti) = rho(x,y,z,t=ti) - rho(x,y,z,t=t0).
-
                                           [-g*(rhop^2)]
 	PE = Integrated in a control volume V [-----------]     # [J]
                                           [ 2*drhodz  ]
-
 	If 'normalize' is set to 'True', then PE/V (mean PE density [J/m3]) is returned instead.
-
 	Reference:
 	----------
 	Cushman-Roisin (1994): Introduction to Geophysical Fluid Dynamics, page 213,
