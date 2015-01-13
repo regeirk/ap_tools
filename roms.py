@@ -15,7 +15,9 @@ __all__ = ['energy_diagnostics',
 import numpy as np
 from scipy.interpolate import interp1d
 try:
-	from seawater import pres, pden, grav
+	from seawater import pres
+	from seawater import pden
+	from seawater import g as grav
 except:
 	try:
 		from seawater.csiro import pres, pden, grav
@@ -37,7 +39,12 @@ from pyroms.vgrid import s_coordinate, s_coordinate_2, s_coordinate_4
 
 def energy_diagnostics(avgfile, grdfile, rho0=1025., gridid=None, maskfile='msk_shelf.npy', normalize=True, verbose=True):
 	"""
-	t, KE, PE = energy_diagnostics(avgfile, grdfile, rho0=1025., gridid=None, maskfile='msk_shelf.npy', normalize=True, verbose=True)
+	USAGE
+	-----
+	t, HKE, TPE = energy_diagnostics(avgfile, grdfile, rho0=1025., gridid=None, maskfile='msk_shelf.npy', normalize=True, verbose=True)
+
+	Calculates volume-integrated Horizontal Kinetic Energy (HKE) and Total Potential Energy (TPE)
+	within a control volume for each time record of a ROMS *.avg or *.his file.
 	"""
 	avg = Dataset(avgfile)
 
@@ -380,9 +387,11 @@ def pe(avgfile, grdfile, gridid=None, maskfile='/media/Armadillo/bkp/lado/MSc/wo
 	Calculates Potential Energy (PE) change integrated within a control volume
 	for each time record of a ROMS *.avg or *.his file. The change is computed relative to
 	the initial conditions, i.e., rhop(x,y,z,t=ti) = rho(x,y,z,t=ti) - rho(x,y,z,t=t0).
+
                                           [-g*(rhop^2)]
 	PE = Integrated in a control volume V [-----------]     # [J]
                                           [ 2*drhodz  ]
+
 	If 'normalize' is set to 'True', then PE/V (mean PE density [J/m3]) is returned instead.
 	Reference:
 	----------
