@@ -5,7 +5,11 @@
 # Author:      André Palóczy Filho
 # E-mail:      paloczy@gmail.com
 
-__all__ = ['rot_vec',
+from __future__ import division
+
+__all__ = ['flowfun',
+           'cumsimp',
+           'rot_vec',
            'lon180to360',
            'lon360to180',
            'mnear',
@@ -40,6 +44,58 @@ from mlabwrap import MatlabPipe
 from netCDF4 import Dataset, num2date
 from pandas import Panel
 from gsw import distance
+
+def flowfun(x):
+	return 1
+
+def cumsimp(y):
+	"""
+	F = CUMSIMP(Y)    Simpson-rule column-wise cumulative summation.
+	Numerical approximation of a function F(x) such that 
+	Y(X) = dF/dX.  Each column of the input matrix Y represents
+	the value of the integrand  Y(X)  at equally spaced points
+	X = 0,1,...size(Y,1).
+	The output is a matrix  F of the same size as Y.
+	The first row of F is equal to zero and each following row
+	is the approximation of the integral of each column of matrix
+	Y up to the givem row.
+	CUMSIMP assumes continuity of each column of the function Y(X)
+	and uses Simpson rule summation.
+	Similar to the command F = CUMSUM(Y), exept for zero first
+	row and more accurate summation (under the assumption of
+	continuous integrand Y(X)).
+
+	Author: Kirill K. Pankratov, March 7, 1994.
+	Translated to Python by André Palóczy, January 14, 2015.
+	"""
+	y = np.asanyarray(y)
+	y = y.squeeze()
+
+	## 3-point interpolation coefficients to midpoints.
+	## Second-order polynomial (parabolic) interpolation coefficients
+	## from  Xbasis = [0 1 2]  to  Xint = [.5 1.5]
+	c1 = 3/8.
+	c2 = 6/8.
+	c3 = -1/8.
+
+	lv = y.size                   # Determine the size of the input.
+	f = np.zeros(lv)              # Initialize summation array.
+
+	if lv==2:                     # If only 2 elements in columns - simple average.
+		f[1] = (y[0] + y[1])/2.
+		return f
+	else:                         # If more than two elements in columns - Simpson summation.
+		## Interpolate values of y to all midpoints.
+		f[1:-1] = c1*y[:-2] + c2*y[1:-1] + c3*y[2:]
+		f[2:] = f[2:] + c3*y[:-2] + c2*y[1:-1] + c1*y[2:]
+		f[1] = f[1]*2
+		f[-1] = f[-1]*2
+
+		## Simpson (1,4,1) rule.
+		f[1:] = 2*f[1:] + y[:-1] + y[1:]
+		f = np.cumsum(f)/6.       # Cumulative sum, 6 - denominator from the Simpson rule.
+
+	return f
 
 def rot_vec(u, v, angle=-45, degrees=True):
 	"""

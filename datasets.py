@@ -85,3 +85,7 @@ def get_indices(min_lat, max_lat, min_lon, max_lon, lons, lats):
     res[2] = indices[1][2]
     res[3] = indices[0][2]
     return res
+
+if __name__=='__main__':
+  import doctest
+  doctest.testmod()
