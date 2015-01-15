@@ -45,8 +45,71 @@ from netCDF4 import Dataset, num2date
 from pandas import Panel
 from gsw import distance
 
-def flowfun(x):
-	return 1
+def flowfun(u, v, variable='psi'):
+	"""
+	FLOWFUN  Computes the potential PHI and the streamfunction PSI
+	 of a 2-dimensional flow defined by the matrices of velocity
+	 components U and V, so that
+
+	       d(PHI)    d(PSI)          d(PHI)    d(PSI)
+	  u =  -----  -  ----- ,    v =  -----  +  -----
+	        dx        dy              dx        dy
+
+	P = FLOWFUN(u,v) returns an array P of the same size as u and v,
+	which can be the velocity potential (PHI) or the streamfunction (PSI)
+	Because these scalar fields are defined up to the integration constant,
+	their absolute values are such that PHI[0,0] = PSI[0,0] = 0.
+
+	For a potential (irrotational) flow  PSI = 0, and the Laplacian
+	of PSI is equal to the divergence of the velocity field.
+
+	A solenoidal (non-divergent) flow can be described by the
+	streamfunction alone, and the Laplacian of the streamfunction
+	is equal to the vorticity (curl) of the velocity field.
+
+	The grid spacings are assumed to be dx = dy = 1 everywhere.
+
+	If variable='psi', the streamfunction (PSI) is returned.
+	If variable='phi', the velocity potential (PHI) is returned.
+
+	Uses function 'cumsimp()' (Simpson rule summation).
+
+	Author: Kirill K. Pankratov, March 7, 1994.
+	Translated to Python by André Palóczy, January 15, 2015.
+	"""
+	u,v = map(np.asanyarray, (u,v))
+
+	if u.shape!=v.shape:
+		print "Error: matrices U and V must be of equal shape."
+		return
+
+	ly, lx = u.shape                         # Shape of the velocity matrices.
+
+	## Now the main computations.
+	## Integrate velocity fields to get potential and streamfunction.
+	## Use Simpson rule summation (function CUMSIMP).
+
+	## Compute potential PHI (non-rotating part).
+	if variable=='phi':
+		cx = cumsimp(u[0,:])                 # Compute x-integration constant
+		cy = cumsimp(v[:,0])                 # Compute y-integration constant
+		cx = np.expand_dims(cx, 0)
+		cy = np.expand_dims(cy, 1)
+		phix = cumsimp(v) + np.tile(cx, (ly,1))
+		phiy = cumsimp(u.T).T + np.tile(cy, (1,lx))
+		phi = (phix + phiy)/2.
+		return phi
+
+	## Compute streamfunction PSI (solenoidal part).
+	if variable=='psi':
+		cx = cumsimp(v[0,:])                 # Compute x-integration constant
+		cy = cumsimp(u[:,0])                 # Compute y-integration constant
+		cx = np.expand_dims(cx, 0)
+		cy = np.expand_dims(cy, 1)
+		psix = -cumsimp(u) + np.tile(cx, (ly,1))
+		psiy = cumsimp(v.T).T + np.tile(cy, (1,lx))
+		psi = (psix + psiy)/2.
+		return psi
 
 def cumsimp(y):
 	"""
@@ -66,10 +129,9 @@ def cumsimp(y):
 	continuous integrand Y(X)).
 
 	Author: Kirill K. Pankratov, March 7, 1994.
-	Translated to Python by André Palóczy, January 14, 2015.
+	Translated to Python by André Palóczy, January 15, 2015.
 	"""
 	y = np.asanyarray(y)
-	y = y.squeeze()
 
 	## 3-point interpolation coefficients to midpoints.
 	## Second-order polynomial (parabolic) interpolation coefficients
@@ -78,22 +140,33 @@ def cumsimp(y):
 	c2 = 6/8.
 	c3 = -1/8.
 
-	lv = y.size                   # Determine the size of the input.
-	f = np.zeros(lv)              # Initialize summation array.
+	if y.ndim==1:
+		y = np.expand_dims(y,1)
+		f = np.zeros((y.size,1))    # Initialize summation array.
+		squeeze_after = True
+	elif y.ndim==2:
+		f = np.zeros(y.shape)       # Initialize summation array.
+		squeeze_after = False
+	else:
+		print "Error: Input array has more than 2 dimensions."
+		return
 
-	if lv==2:                     # If only 2 elements in columns - simple average.
-		f[1] = (y[0] + y[1])/2.
+	if y.size==2:                   # If only 2 elements in columns - simple average.
+		f[1,:] = (y[0,:] + y[1,:])/2.
 		return f
-	else:                         # If more than two elements in columns - Simpson summation.
+	else:                           # If more than two elements in columns - Simpson summation.
 		## Interpolate values of y to all midpoints.
-		f[1:-1] = c1*y[:-2] + c2*y[1:-1] + c3*y[2:]
-		f[2:] = f[2:] + c3*y[:-2] + c2*y[1:-1] + c1*y[2:]
-		f[1] = f[1]*2
-		f[-1] = f[-1]*2
+		f[1:-1,:] = c1*y[:-2,:] + c2*y[1:-1,:] + c3*y[2:,:]
+		f[2:,:] = f[2:,:] + c3*y[:-2,:] + c2*y[1:-1,:] + c1*y[2:,:]
+		f[1,:] = f[1,:]*2
+		f[-1,:] = f[-1,:]*2
 
 		## Simpson (1,4,1) rule.
-		f[1:] = 2*f[1:] + y[:-1] + y[1:]
-		f = np.cumsum(f)/6.       # Cumulative sum, 6 - denominator from the Simpson rule.
+		f[1:,:] = 2*f[1:,:] + y[:-1,:] + y[1:,:]
+		f = np.cumsum(f, axis=0)/6. # Cumulative sum, 6 - denominator from the Simpson rule.
+
+	if squeeze_after:
+		f = f.squeeze()
 
 	return f
 
