@@ -45,7 +45,7 @@ from netCDF4 import Dataset, num2date
 from pandas import Panel
 from gsw import distance
 
-def flowfun(u, v, variable='psi'):
+def flowfun(x, y, u, v, variable='psi', geographic=True):
 	"""
 	FLOWFUN  Computes the potential PHI and the streamfunction PSI
 	 of a 2-dimensional flow defined by the matrices of velocity
@@ -55,7 +55,7 @@ def flowfun(u, v, variable='psi'):
 	  u =  -----  -  ----- ,    v =  -----  +  -----
 	        dx        dy              dx        dy
 
-	P = FLOWFUN(u,v) returns an array P of the same size as u and v,
+	P = FLOWFUN(x,y,u,v) returns an array P of the same size as u and v,
 	which can be the velocity potential (PHI) or the streamfunction (PSI)
 	Because these scalar fields are defined up to the integration constant,
 	their absolute values are such that PHI[0,0] = PSI[0,0] = 0.
@@ -67,47 +67,67 @@ def flowfun(u, v, variable='psi'):
 	streamfunction alone, and the Laplacian of the streamfunction
 	is equal to the vorticity (curl) of the velocity field.
 
-	The grid spacings are assumed to be dx = dy = 1 everywhere.
+	The units of the grid coordinates are assumed to be consistent
+	with the units of the velocity components, e.g., [m] and [m/s].
 
-	If variable='psi', the streamfunction (PSI) is returned.
-	If variable='phi', the velocity potential (PHI) is returned.
+	If variable=='psi', the streamfunction (PSI) is returned.
+
+	If variable=='phi', the velocity potential (PHI) is returned.
+
+	If geographic==True (default), (x,y) are assumed to be
+	(longitude,latitude) and are converted to meters before
+	computing (dx,dy).
+
+	If geographic==False, (x,y) are assumed to be in meters.
 
 	Uses function 'cumsimp()' (Simpson rule summation).
 
 	Author: Kirill K. Pankratov, March 7, 1994.
 	Translated to Python by André Palóczy, January 15, 2015.
+	Modified by André Palóczy on January 15, 2015.
 	"""
-	u,v = map(np.asanyarray, (u,v))
+	x,y,u,v = map(np.asanyarray, (x,y,u,v))
 
-	if u.shape!=v.shape:
-		print "Error: matrices U and V must be of equal shape."
+	if not x.shape==y.shape==u.shape==v.shape:
+		print "Error: Arrays (x, y, u, v) must be of equal shape."
 		return
 
-	ly, lx = u.shape                         # Shape of the velocity matrices.
+	## Calculating grid spacings.
+	if geographic:
+		dlat, _ = np.gradient(y)
+		_, dlon = np.gradient(x)
+		deg2m = 111120.0                     # [m/deg]
+		dx = dlon*deg2m*np.cos(y*np.pi/180.) # [m]
+		dy = dlat*deg2m                      # [m]
+	else:
+		dy, _ = np.gradient(y)
+		_, dx = np.gradient(x)
+
+	ly, lx = x.shape                         # Shape of the (x,y,u,v) arrays.
 
 	## Now the main computations.
 	## Integrate velocity fields to get potential and streamfunction.
 	## Use Simpson rule summation (function CUMSIMP).
 
-	## Compute potential PHI (non-rotating part).
+	## Compute velocity potential PHI (non-rotating part).
 	if variable=='phi':
-		cx = cumsimp(u[0,:])                 # Compute x-integration constant
-		cy = cumsimp(v[:,0])                 # Compute y-integration constant
+		cx = cumsimp(u[0,:]*dx[0,:])         # Compute x-integration constant
+		cy = cumsimp(v[:,0]*dy[:,0])         # Compute y-integration constant
 		cx = np.expand_dims(cx, 0)
 		cy = np.expand_dims(cy, 1)
-		phix = cumsimp(v) + np.tile(cx, (ly,1))
-		phiy = cumsimp(u.T).T + np.tile(cy, (1,lx))
+		phiy = cumsimp(v*dy) + np.tile(cx, (ly,1))
+		phix = cumsimp(u.T*dx.T).T + np.tile(cy, (1,lx))
 		phi = (phix + phiy)/2.
 		return phi
 
-	## Compute streamfunction PSI (solenoidal part).
+	## Compute streamfunction PSI (non-divergent part).
 	if variable=='psi':
-		cx = cumsimp(v[0,:])                 # Compute x-integration constant
-		cy = cumsimp(u[:,0])                 # Compute y-integration constant
+		cx = cumsimp(v[0,:]*dx[0,:])         # Compute x-integration constant
+		cy = cumsimp(u[:,0]*dy[:,0])         # Compute y-integration constant
 		cx = np.expand_dims(cx, 0)
 		cy = np.expand_dims(cy, 1)
-		psix = -cumsimp(u) + np.tile(cx, (ly,1))
-		psiy = cumsimp(v.T).T + np.tile(cy, (1,lx))
+		psix = -cumsimp(u*dy) + np.tile(cx, (ly,1))
+		psiy = cumsimp(v.T*dx.T).T + np.tile(cy, (1,lx))
 		psi = (psix + psiy)/2.
 		return psi
 
