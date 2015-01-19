@@ -678,6 +678,7 @@ def curvature_geometric(x, y):
 
 	Author: Roger Stafford
 	Source: http://www.mathworks.com/matlabcentral/newsreader/view_thread/125637
+	Translated to Python by André Palóczy, January 19, 2015.
 	"""
 	x,y = map(np.asanyarray, (x,y))
 
