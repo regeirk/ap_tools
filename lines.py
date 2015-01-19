@@ -13,8 +13,7 @@
 
 import numpy as np
 
-
-def LineNormals2D(Vertices, Lines):
+def LineNormals2D(Vertices, Lines=None):
     r"""This function calculates the normals, of the line points using the
     neighbouring points of each contour point, and forward an backward
     differences on the end points.
@@ -73,7 +72,6 @@ def LineNormals2D(Vertices, Lines):
     N[:, 1] = D[:, 0] / LL
 
     return N
-
 
 def LineCurvature2D(Vertices, Lines=None):
     r"""This function calculates the curvature of a 2D line. It first fits
@@ -194,7 +192,6 @@ def LineCurvature2D(Vertices, Lines=None):
          ((a[:, 1] ** 2 + b[:, 1] ** 2) ** (3 / 2)))
 
     return k
-
 
 def inverse3(M):
     r"""This function does inv(M), but then for an array of 3x3 matrices."""
