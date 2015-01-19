@@ -693,7 +693,7 @@ def curvature_geometric(x, y):
 	## The reciprocal of the circumscribed radius, i.e., the curvature.
 	k = 4.0*A/(a*b*c)
 
-	return k
+	return np.squeeze(k)
 
 def get_isobath(lon, lat, topo, iso):
 	"""
