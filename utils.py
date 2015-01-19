@@ -83,6 +83,7 @@ def flowfun(x, y, u, v, variable='psi', geographic=True):
 	Uses function 'cumsimp()' (Simpson rule summation).
 
 	Author: Kirill K. Pankratov, March 7, 1994.
+	Source: http://www-pord.ucsd.edu/~matlab/stream.htm
 	Translated to Python by André Palóczy, January 15, 2015.
 	Modified by André Palóczy on January 15, 2015.
 	"""
@@ -149,6 +150,7 @@ def cumsimp(y):
 	continuous integrand Y(X)).
 
 	Author: Kirill K. Pankratov, March 7, 1994.
+	Source: http://www-pord.ucsd.edu/~matlab/stream.htm
 	Translated to Python by André Palóczy, January 15, 2015.
 	"""
 	y = np.asanyarray(y)
