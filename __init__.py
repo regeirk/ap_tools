@@ -9,10 +9,12 @@ __all__ = ['utils',
            'sat',
            'study',
            'datasets',
-           'roms']
+           'roms',
+           'lines']
 
 import utils
 import sat
 import study
 import datasets
 import roms
+import lines

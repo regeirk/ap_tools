@@ -20,6 +20,7 @@ __all__ = ['flowfun',
            'weim',
            'smoo2',
            'topo_slope',
+           'curvature_geometric',
 		   'get_isobath',
            'wind2stress',
            'maxwindow',
@@ -653,6 +654,45 @@ def topo_slope(lon, lat, h):
 	lats = 0.5*(lats[:,1:]+lats[:,:-1])
 
 	return lons, lats, slope
+
+def curvature_geometric(x, y):
+	"""
+	USAGE
+	-----
+	k = curvature_geometric(x, y)
+
+	Estimates the curvature k of a 2D curve (x,y) using a geometric method.
+
+	If your curve is given by two arrays, x and y, you can
+	approximate its curvature at each point by the reciprocal of the
+	radius of a circumscribing triangle with that point, the preceding
+	point, and the succeeding point as vertices. The radius of such a
+	triangle is one fourth the product of the three sides divided by its
+	area.
+
+	The curvature will be positive for curvature to the left and
+	negative for curvature to the right as you advance along the curve.
+
+	Note that if your data are too closely spaced together or subject
+	to substantial noise errors, this formula will not be very accurate.
+
+	Author: Roger Stafford
+	Source: http://www.mathworks.com/matlabcentral/newsreader/view_thread/125637
+	"""
+	x,y = map(np.asanyarray, (x,y))
+
+	x1 = x[:-2]; x2 = x[1:-1]; x3 = x[2:]
+	y1 = y[:-2]; y2 = y[1:-1]; y3 = y[2:]
+	## a, b, and c are the three sides of the triangle.
+	a = np.sqrt((x3-x2)**2 + (y3-y2)**2)
+	b = np.sqrt((x1-x3)**2 + (y1-y3)**2)
+	c = np.sqrt((x2-x1)**2 + (y2-y1)**2)
+	## A is the area of the triangle.
+	A = 0.5*(x1*y2 + x2*y3 + x3*y1 - x1*y3 - x2*y1 - x3*y2)
+	## The reciprocal of the circumscribed radius, i.e., the curvature.
+	k = 4.0*A/(a*b*c)
+
+	return k
 
 def get_isobath(lon, lat, topo, iso):
 	"""
