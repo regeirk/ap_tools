@@ -10,6 +10,7 @@
 __all__ = ['energy_diagnostics',
 		   'vel_ke',
            'pe',
+           'time_avg',
            'make_flat_ini']
 
 import numpy as np
@@ -515,6 +516,37 @@ def pe(avgfile, grdfile, gridid=None, maskfile='/media/Armadillo/bkp/lado/MSc/wo
 		PE = np.append(PE, Pe)
 
 	return t, PE
+
+def time_avg(avgfile, varname='temp', tstart=0., tend=10.):
+	"""
+	USAGE
+	-----
+	averaged_var = time_avg(avgfile, varname='temp', tstart=0., tend=10.)
+
+	Returns a time-averaged field of the variable named 'varname' contained
+	in the netCDF file located in the path 'avgfile'.
+
+	tstart and tend are the wanted model times to average between (in days).
+	"""
+	nc = Dataset(avgfile)
+	ncvar = nc.variables[varname]
+	Time = nc.variables['ocean_time'][:]/86400. # Model time in days.
+
+	Time-=Time[0]
+	t1 = np.abs(Time-tstart).argmin()
+	t2 = np.abs(Time-tend).argmin()
+	t2 = t2 + 1
+	time = Time[t1:t2]
+	nt = time.size
+
+	wrk = np.ma.zeros(ncvar.shape[1:])
+	c = 0
+	for ti in xrange(t1,t2):
+		print "Adding time record %s of %s. t = %s days."%(c+1,nt,time[c])
+		wrk += ncvar[ti,:]
+		c+=1
+
+	return wrk/float(nt)
 
 def make_flat_ini(grdfile, setup_file, profile_z, profile_T, profile_S, return_all=False):
 	"""
