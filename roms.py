@@ -541,10 +541,13 @@ def time_avg(avgfile, varname='temp', tstart=0., tend=10.):
 
 	wrk = np.ma.zeros(ncvar.shape[1:])
 	c = 0
+	print ""
+	print "Variable: %s."%varname
 	for ti in xrange(t1,t2):
 		print "Adding time record %s of %s. t = %s days."%(c+1,nt,time[c])
 		wrk += ncvar[ti,:]
 		c+=1
+	print ""
 
 	return wrk/float(nt)
 
