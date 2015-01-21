@@ -10,6 +10,7 @@
 __all__ = ['energy_diagnostics',
 		   'vel_ke',
            'pe',
+           'vorticity',
            'time_avg',
            'make_flat_ini']
 
@@ -516,6 +517,31 @@ def pe(avgfile, grdfile, gridid=None, maskfile='/media/Armadillo/bkp/lado/MSc/wo
 		PE = np.append(PE, Pe)
 
 	return t, PE
+
+def vorticity(u, v, grd):
+	"""
+	compute relative vorticity.
+	Fixed from function pyroms_toolbox.vorticity().
+	"""
+
+	dx = grd.hgrid.dx # dx at RHO-points.
+	dy = grd.hgrid.dy # dy at RHO-points.
+
+	#dx, dy at psi point
+	dx = 0.5 * (dx[1:,:] + dx[:-1,:]) # dx at V-points.
+	dy = 0.5 * (dy[:,1:] + dy[:,:-1]) # dy at U-points.
+
+	dx = 0.5 * (dx[:,1:] + dx[:,:-1]) # dx at PSI-points.
+	dy = 0.5 * (dy[1:,:] + dy[:-1,:]) # dy at PSI-points.
+
+	vorticity = np.zeros(grd.hgrid.mask_psi.shape)
+
+	# Take Vx - Uy.
+	vorticity = ( (v[:,1:] - v[:,:-1]) / dx ) - ( (u[1:,:] - u[:-1,:]) / dy ) # The sign of the y-derivative of u was reversed.
+
+	vorticity = np.ma.masked_where(grd.hgrid.mask_psi==0, vorticity)
+
+	return vorticity
 
 def time_avg(avgfile, varname='temp', tstart=0., tend=10.):
 	"""
