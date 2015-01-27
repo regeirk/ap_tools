@@ -94,8 +94,8 @@ def pgf(z, y, x, eta, rho, pa=0., rho0=1025., geographic=True):
 	PGF_bt_x = -g*detadx
 
 	## Vertical integration from z' = eta(x,y) through z' = z.
-	Iy = np.cumsum(drhody*dz)
-	Ix = np.cumsum(drhodx*dz)
+	Iy = np.cumsum(drhody*dz, axis=0)
+	Ix = np.cumsum(drhodx*dz, axis=0)
 
 	## Baroclinic pressure gradient force per unit mass.
 	PGF_bc_y = +g*Iy/rho0
