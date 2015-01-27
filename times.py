@@ -54,7 +54,6 @@ import calendar
 import numpy as np
 ##from vg import helpers as my
 
-
 def cwr2datetime(cwr_string):
     """Converts a CWR-timesting into a datetime object.
     >>> cwr2datetime("2040001.00")
@@ -646,7 +645,6 @@ def xls2datetime(xldate, datemode=0):
         return xls2datetime_single(xldate, datemode)
     except (ValueError, TypeError):
         return np.array([xls2datetime_single(xl, datemode) for xl in xldate])
-
 
 if __name__ == '__main__':
     import doctest
