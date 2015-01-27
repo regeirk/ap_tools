@@ -10,7 +10,8 @@ __all__ = ['utils',
            'study',
            'datasets',
            'roms',
-           'lines']
+           'lines',
+           'dyn']
 
 import utils
 import sat
@@ -18,3 +19,4 @@ import study
 import datasets
 import roms
 import lines
+import dyn
