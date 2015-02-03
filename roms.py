@@ -9,10 +9,10 @@
 
 __all__ = ['energy_diagnostics',
 		   'vel_ke',
-           'pe',
-           'vorticity',
-           'time_avg',
-           'make_flat_ini']
+		   'pe',
+		   'vorticity',
+		   'time_avgstd',
+		   'make_flat_ini']
 
 import numpy as np
 from scipy.interpolate import interp1d
@@ -543,18 +543,20 @@ def vorticity(u, v, grd):
 
 	return vorticity
 
-def time_avg(avgfile, varname='temp', tstart=0., tend=10.):
+def time_avgstd(ncfile, calc_std=False, varname='temp', tstart=0., tend=10.):
 	"""
 	USAGE
 	-----
-	averaged_var = time_avg(avgfile, varname='temp', tstart=0., tend=10.)
+	mean_var, std_var = time_avgstd(ncfile, calc_std=False, varname='temp', tstart=0., tend=10.)
 
 	Returns a time-averaged field of the variable named 'varname' contained
-	in the netCDF file located in the path 'avgfile'.
+	in the netCDF file located in the path 'ncfile'.
+
+	If calc_std is set to True (defaults to False), then the standard deviation is also returned.
 
 	tstart and tend are the wanted model times to average between (in days).
 	"""
-	nc = Dataset(avgfile)
+	nc = Dataset(ncfile)
 	ncvar = nc.variables[varname]
 	Time = nc.variables['ocean_time'][:]/86400. # Model time in days.
 
@@ -566,16 +568,28 @@ def time_avg(avgfile, varname='temp', tstart=0., tend=10.):
 	nt = time.size
 
 	wrk = np.ma.zeros(ncvar.shape[1:])
-	c = 0
+	if calc_std:
+		wrk_sq = wrk.copy()
+	c = 0.
 	print ""
 	print "Variable: %s."%varname
 	for ti in xrange(t1,t2):
 		print "Adding time record %s of %s. t = %s days."%(c+1,nt,time[c])
-		wrk += ncvar[ti,:]
-		c+=1
+		if calc_std:             # Calculate mean and std.
+			vari = ncvar[ti,:]
+			wrk_sq += vari*vari  # Accumumating squares.
+			wrk += vari
+		else:                    # Calculate mean only.
+			wrk += ncvar[ti,:]
+		c+=1.
 	print ""
 
-	return wrk/float(nt)
+	average = wrk/c
+
+	if calc_std:
+		return average, np.sqrt(wrk_sq/c - average*average)
+	else:
+		return wrk/c
 
 def make_flat_ini(grdfile, setup_file, profile_z, profile_T, profile_S, return_all=False):
 	"""
