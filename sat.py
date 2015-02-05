@@ -14,7 +14,8 @@ __all__ = ['get_aviso',
            'sav_aviso',
            'plt_aviso',
            'wind_subset',
-           'dl_goes']
+           'dl_goes',
+           'MUR_data']
 
 import os
 import h5py
@@ -228,6 +229,25 @@ def dl_goes(time=datetime(2013,9,13), dt=24, dest_dir='./'):
     np.disp("Done downloading all files.")
 
     return None
+
+class MUR_data(object):
+    """
+    USAGE
+    -----
+    mur = MUR_data(filename)
+
+    A simple container class for MUR data (http://mur.jpl.nasa.gov/).
+    """
+    def __init__(self, filename):
+        self.ncfile = Dataset(filename)
+        self.varlist = list(self.ncfile.variables)
+        self.lon = self.ncfile.variables['lon'][:]
+        self.lat = self.ncfile.variables['lat'][:]
+        self.sst = self.ncfile.variables['analysed_sst'][:]
+        self.ncfile.close()
+        self.x, self.y = np.meshgrid(self.lon, self.lat)
+        self.sst = self.sst.squeeze()
+        self.sst -= 273.15
 
 # TODO.
 # def mur_subset(times=(datetime(2009,12,28), datetime(2010,1,10)),
