@@ -6,6 +6,7 @@ ap_tools
 """
 
 __all__ = ['utils',
+           'times',
            'sat',
            'study',
            'datasets',
@@ -14,6 +15,7 @@ __all__ = ['utils',
            'dyn']
 
 import utils
+import times
 import sat
 import study
 import datasets

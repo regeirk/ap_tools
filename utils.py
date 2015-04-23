@@ -26,6 +26,7 @@ __all__ = ['flowfun',
            'maxwindow',
            'gen_dates',
            'fmt_isobath',
+           'float2latex',
            'extract_npz',
            'mat2npz',
            'bb_map',
@@ -817,6 +818,23 @@ def fmt_isobath(cs, fontsize=8, fmt='%g', inline=True, inline_spacing=7, manual=
 		isobstr = isobstrh.get_text()
 		isobstr = isobstr.replace('-','') + ' m'
 		isobstrh.set_text(isobstr)
+
+def float2latex(f, ndigits=1):
+	"""
+	USAGE
+	-----
+	texstr = float2latex(f, ndigits=1)
+
+	Converts a float input into a latex-formatted
+	string with 'ndigits' (defaults to 1).
+
+	Adapted from:
+	http://stackoverflow.com/questions/13490292/format-number-using-latex-notation-in-python
+	"""
+	float_str = "{0:.%se}"%ndigits
+	float_str = float_str.format(f)
+	base, exponent = float_str.split("e")
+	return ur"${0} \times 10^{{{1}}}$".format(base, int(exponent))
 
 def extract_npz(fname):
 	"""
