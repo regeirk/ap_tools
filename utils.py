@@ -22,6 +22,7 @@ __all__ = ['flowfun',
            'topo_slope',
            'curvature_geometric',
 		   'get_isobath',
+		   'whiten_zero',
            'wind2stress',
            'maxwindow',
            'gen_dates',
@@ -727,6 +728,25 @@ def get_isobath(lon, lat, topo, iso):
 	plt.ion()
 
 	return xiso, yiso
+
+def whiten_zero(x, y, z, ax, cs, n=1, cmap=plt.cm.RdBu_r, zorder=9):
+	"""
+	USAGE
+	-----
+	whiten_zero(x, y, z, ax, cs, n=1, cmap=plt.cm.RdBu_r, zorder=9)
+
+	Changes to white the color of the 'n' (defaults to 1)
+	neighboring patches about the zero contour created
+	by a command like 'cs = ax.contourf(x, y, z)'.
+	"""
+	x, y, z = map(np.asanyarray, (x,y,z))
+	white = (1.,1.,1.)
+	cslevs = cs.levels
+	assert 0. in cslevs
+	f0=np.where(cslevs==0.)[0][0]
+	f0m, f0p = f0-n, f0+n
+	c0m, c0p = cslevs[f0m], cslevs[f0p]
+	ax.contourf(x, y, z, levels=[c0m, c0p], linestyles='none', colors=[white, white], cmap=None, zorder=zorder)
 
 def wind2stress(u, v, formula='large_pond1981-modified'):
 	"""
