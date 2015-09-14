@@ -15,6 +15,7 @@ __all__ = ['flowfun',
            'mnear',
            'refine',
            'denan',
+           'standardize',
            'point_in_poly',
            'get_mask_from_poly',
            'sphericalpolygon_area',
@@ -659,6 +660,20 @@ def denan(arr):
 	"""
 	f = np.isnan(arr)
 	return arr[~f]
+
+def standardize(series):
+	"""
+	USAGE
+	-----
+	series2 = standardize(series)
+
+	Standardizes a series by subtracting its mean value
+	and dividing by its standard deviation. The result is
+	a dimensionless series. Inputs can be of type
+	"np.array", or "Pandas.Series"/"Pandas.TimeSeries".
+	"""
+	Mean, Std = series.mean(), series.std()
+	return (series - Mean)/Std
 
 def maxwindow():
 	"""
