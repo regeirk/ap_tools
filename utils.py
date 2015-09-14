@@ -17,6 +17,8 @@ __all__ = ['flowfun',
            'denan',
            'point_in_poly',
            'get_mask_from_poly',
+           'sphericalpolygon_area',
+           'greatCircleBearing',
            'weim',
            'smoo2',
            'topo_slope',
@@ -345,6 +347,60 @@ def get_mask_from_poly(xp, yp, poly, verbose=False):
 			mask[j,i] = point_in_poly(px, py, poly)
 
 	return mask
+
+def sphericalpolygon_area(lons, lats, R=6371000.):
+	"""
+	USAGE
+	-----
+	area = sphericalpolygon_area(lons, lats, R=6371000.)
+
+	Calculates the area of a polygon on the surface of a sphere of 
+	radius R using Girard's Theorem, which states that the area of
+	a polygon of great circles is R**2 times the sum of the angles
+	between the polygons minus (N-2)*pi, where N is number of corners.
+	R = 6371000 m (6371 km, default) is a typical value for the mean
+	radius of the Earth.
+
+	Source: http://stackoverflow.com/questions/4681737/how-to-calculate-the-area-of-a-polygon-on-the-earths-surface-using-python
+	"""
+	lons, lats = map(np.asanyarray, (lons, lats))
+	N = lons.size
+
+	angles = np.empty(N)
+	for i in xrange(N):
+
+	    phiB1, phiA, phiB2 = np.roll(lats, i)[:3]
+	    LB1, LA, LB2 = np.roll(lons, i)[:3]
+
+	    # calculate angle with north (eastward)
+	    beta1 = greatCircleBearing(LA, phiA, LB1, phiB1)
+	    beta2 = greatCircleBearing(LA, phiA, LB2, phiB2)
+
+	    # calculate angle between the polygons and add to angle array
+	    angles[i] = np.arccos(np.cos(-beta1)*np.cos(-beta2) + np.sin(-beta1)*np.sin(-beta2))
+
+	return (np.sum(angles) - (N-2)*np.pi)*R**2
+
+def greatCircleBearing(lon1, lat1, lon2, lat2):
+	"""
+	USAGE
+	-----
+	angle = greatCircleBearing(lon1, lat1, lon2, lat2)
+
+	Calculates the angle (positive eastward) a
+	great circle passing through points (lon1,lat1)
+	and (lon2,lat2) makes with true nirth.
+
+	Source: http://stackoverflow.com/questions/4681737/how-to-calculate-the-area-of-a-polygon-on-the-earths-surface-using-python
+	"""
+	lon1, lat1, lon2, lat2 = map(np.asanyarray, (lon1, lat1, lon2, lat2))
+	dLong = lon1 - lon2
+	d2r = np.pi/180.
+
+	s = np.cos(d2r*lat2)*np.sin(d2r*dLong)
+	c = np.cos(d2r*lat1)*np.sin(d2r*lat2) - np.sin(lat1*d2r)*np.cos(d2r*lat2)*np.cos(d2r*dLong)
+
+	return np.arctan2(s, c)
 
 def weim(x, N, kind='hann', badflag=-9999, beta=14):
 	"""
