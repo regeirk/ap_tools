@@ -16,6 +16,7 @@ __all__ = ['flowfun',
            'refine',
            'denan',
            'standardize',
+           'linear_trend',
            'point_in_poly',
            'get_mask_from_poly',
            'sphericalpolygon_area',
@@ -674,6 +675,35 @@ def standardize(series):
 	"""
 	Mean, Std = series.mean(), series.std()
 	return (series - Mean)/Std
+
+def linear_trend(series, return_line=True):
+	"""
+	USAGE
+	-----
+	line = linear_trend(series, return_line=True)
+
+	OR
+
+	b, a, x = linear_trend(series, return_line=False)
+
+	Returns the linear fit (line = b*x + a) associated
+	with the 'series' array.
+
+	Adapted from pylab.detrend_linear.
+	"""
+	series = np.asanyarray(series)
+	x = np.arange(series.size, dtype=np.float_)
+
+	C = np.cov(x, series, bias=1) # Covariance matrix.
+	b = C[0, 1]/C[0, 0] # Angular coefficient.
+
+	a = series.mean() - b*x.mean() # Linear coefficient.
+	line = b*x + a
+
+	if return_line:
+		return line
+	else:
+		return b, a, x
 
 def maxwindow():
 	"""
